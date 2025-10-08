@@ -6,9 +6,10 @@ import 'package:mobileapp/ui/home/widgets/home_screen.dart';
 import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
 import 'package:mobileapp/ui/profile/widgets/profile_screen.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
+import 'package:mobileapp/ui/splash/splash_screen.dart';
 
 final router = GoRouter(
-  initialLocation: Routes.home,
+  initialLocation: Routes.splash,
   routes: [
     /// 🔹 ShellRoute untuk layout dengan BottomNavigationBar
     ShellRoute(
@@ -77,6 +78,14 @@ final router = GoRouter(
           path: Routes.profile,
           builder: (context, state) => const ProfileScreen(),
         ),
+         GoRoute(
+          path: Routes.addPost,
+          builder: (context, state) => const AddPostWidget(),
+        ),
+        GoRoute(
+          path: Routes.splash,
+          builder: (context,state) =>  SplashScreen(),
+        )
       ],
     ),
   ],

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mobileapp/routing/routes.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});

@@ -1,103 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mobileapp/routing/routes.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobileapp/state/postNotifier.dart';
+import 'package:mobileapp/ui/widgets/post_card.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  String? fid;
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // fetch hanya saat pertama kali masuk, tidak setiap navigasi
+    if (ref.read(postsProvider).isEmpty) {
+      ref.read(postsProvider.notifier).fetch();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final posts = ref.watch(postsProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: const [
-            Icon(Icons.home),
-            SizedBox(width: 8), // jarak antara icon dan text
-            Text(
-              "For you",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: 5, // contoh dummy 5 postingan
-        itemBuilder: (context, index) {
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade300),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Post content
-                  const Text(
-                    "Ini adalah contoh postingan user di aplikasi sosmed anonymous. "
-                    "Kamu bisa menuliskan apapun di sini.",
-                    style: TextStyle(fontSize: 16),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Post image
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      "https://picsum.photos/400/200?random=$index",
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.favorite_border),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.share),
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
-                ],
+      appBar: AppBar(title: const Text('Timeline')),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // 🌀 Pull to refresh -> fetch ulang
+          await ref.read(postsProvider.notifier).fetch();
+        },
+        child: posts.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(), // penting!
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final post = posts[index];
+                  return PostCard(post: post);
+                },
               ),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // aksi saat tombol + ditekan
-          print("Tombol + ditekan");
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }

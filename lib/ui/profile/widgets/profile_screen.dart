@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/postNotifier.dart';
+import 'package:mobileapp/ui/widgets/post_card.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
+    final posts = ref.watch(postsProvider);
+
     return Scaffold(
       body: DefaultTabController(
         length: 2,
@@ -47,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text("Total posts : 0"),
                       Text("Likes : 10"),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -69,16 +76,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // 👉 Tab Postingan
                   ListView.builder(
-                    itemCount: 5,
+                    physics: const AlwaysScrollableScrollPhysics(), // penting!
+                    itemCount: posts.length,
                     itemBuilder: (context, index) {
-                      return Card(
-                        margin:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text("Postingan anonim ke-${index + 1}"),
-                        ),
-                      );
+                      final post = posts[index];
+                      return PostCard(post: post);
                     },
                   ),
 
@@ -97,6 +99,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          context.go(Routes.addPost);
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }

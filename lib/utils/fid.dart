@@ -14,6 +14,9 @@ Future<void> syncUserToFirestore() async {
   if (existing.docs.isEmpty) {
     // kalau belum ada, buat baru
     await usersRef.add({
+      'username': "",
+      'email': "",
+      'password': "",
       'installation_id': fid,
       'fcm_token': fcmToken,
       'created_at': FieldValue.serverTimestamp(),
