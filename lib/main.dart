@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: "Untraced App",
+      title: "WhyPost App",
       routerConfig: router,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,

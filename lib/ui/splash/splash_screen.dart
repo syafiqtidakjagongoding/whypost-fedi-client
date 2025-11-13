@@ -21,7 +21,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   void _initGuest() async {
     await initGuestUser(ref); // pasti ke-execute
     if (!mounted) return;
-    context.go(Routes.home); // navigasi ke HomeScreen
+    context.go(Routes.instance); // navigasi ke HomeScreen
   }
 
   @override
@@ -38,6 +38,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
             // 🔄 Loading indicator
             const CircularProgressIndicator(color: Colors.white),
+            
           ],
         ),
       ),
