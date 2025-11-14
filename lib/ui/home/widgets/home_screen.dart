@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/postNotifier.dart';
-import 'package:mobileapp/state/user.dart';
-import 'package:mobileapp/ui/widgets/post_card.dart';
+
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -16,8 +14,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(userProvider);
-    final postsAsync = ref.watch(postsStreamProvider(user!.uid));
+    // final postsAsync = ref.watch(postsStreamProvider(user!.uid));
 
     return Scaffold(
       appBar: AppBar(
@@ -29,26 +26,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
-      body: postsAsync.when(
-        data: (posts) => RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(postsStreamProvider(user.uid));
-          },
-          child: posts.isEmpty
-              ? const Center(child: Text('Belum ada post'))
-              : ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: posts.length,
-                  itemBuilder: (context, index) {
-                    final post = posts[index];
-                    return PostCard(post: post);
-                  },
-                ),
-        ),
-        loading: () =>
-            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        error: (e, st) => Center(child: Text('Error: $e')),
-      ),
+      // body: postsAsync.when(
+      //   data: (posts) => RefreshIndicator(
+      //     onRefresh: () async {
+      //       ref.invalidate(postsStreamProvider(user.uid));
+      //     },
+      //     child: posts.isEmpty
+      //         ? const Center(child: Text('Belum ada post'))
+      //         : ListView.builder(
+      //             physics: const AlwaysScrollableScrollPhysics(),
+      //             itemCount: posts.length,
+      //             itemBuilder: (context, index) {
+      //               final post = posts[index];
+      //               return PostCard(post: post);
+      //             },
+      //           ),
+      //   ),
+      //   loading: () =>
+      //       const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      //   error: (e, st) => Center(child: Text('Error: $e')),
+      // ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           context.go(Routes.addPost);

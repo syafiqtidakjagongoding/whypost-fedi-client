@@ -5,32 +5,46 @@ import 'package:flutter_riverpod/legacy.dart';
 class Instance {
   final String url;
   final bool isApproval;
+  final String clientId;
+  final String clientSecret;
+  final String redirectUrl;
 
   const Instance({
     required this.url,
     this.isApproval = false,
+    required this.clientId,
+    required this.clientSecret,
+    this.redirectUrl = "myapp://callback"
   });
 
   /// Copy dengan perubahan tertentu (pattern immutable)
   Instance copyWith({
     String? url,
     bool? isApproval,
+    String? clientId,
+    String? clientSecret,
   }) {
     return Instance(
       url: url ?? this.url,
       isApproval: isApproval ?? this.isApproval,
+      clientId: clientId ?? this.clientId,
+      clientSecret: clientSecret ?? this.clientSecret,
     );
   }
 }
-
 
 /// StateNotifier untuk mengatur state instance
 class InstanceNotifier extends StateNotifier<Instance?> {
   InstanceNotifier() : super(null);
 
   /// Set / update URL instance
-  void setInstance(String url, bool isApproval) {
-    state = Instance(url: url, isApproval: isApproval);
+  void setInstance(String url, bool isApproval, String cId, String cSecret) {
+    state = Instance(
+      url: url,
+      isApproval: isApproval,
+      clientId: cId,
+      clientSecret: cSecret,
+    );
   }
 
   /// Hapus data instance (misalnya saat logout)
@@ -43,7 +57,8 @@ class InstanceNotifier extends StateNotifier<Instance?> {
 }
 
 /// Provider utama untuk mengakses instance di seluruh app
-final instanceProvider =
-    StateNotifierProvider<InstanceNotifier, Instance?>((ref) {
+final instanceProvider = StateNotifierProvider<InstanceNotifier, Instance?>((
+  ref,
+) {
   return InstanceNotifier();
 });

@@ -12,6 +12,10 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+	<string>applinks:app.syafiq-paradisam.my.id</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>Why Post</string>
 	<key>CFBundlePackageType</key>

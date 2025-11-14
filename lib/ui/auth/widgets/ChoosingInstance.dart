@@ -69,11 +69,34 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
       setState(() {
         _message = 'Instance terdeteksi: $instance';
       });
-      ref.read(instanceProvider.notifier).setInstance(instance, jsonData['approval_required']);
-      print(instance);
-      print(jsonData['approval_required']);
-      print(ref.read(instanceProvider)?.url);
-      print(ref.read(instanceProvider)?.isApproval);
+      final appReg = await http.post(
+        Uri.parse('$instance/api/v1/apps'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'client_name': 'WhyPost',
+          'redirect_uris': 'myapp://callback',
+          'scopes': 'read write follow push',
+          'website': 'https://app.syafiq-paradisam.my.id',
+        }),
+      );
+
+      if (appReg.statusCode != 200) {
+        throw Exception("Gagal register app: ${appReg.body}");
+      }
+
+      final regJson = jsonDecode(appReg.body);
+
+      final clientId = regJson['client_id'];
+      final clientSecret = regJson['client_secret'];
+
+      ref
+          .read(instanceProvider.notifier)
+          .setInstance(
+            instance,
+            jsonData['approval_required'],
+            clientId,
+            clientSecret,
+          );
 
       // Setelah sukses, bisa pop ke halaman sebelumnya dengan membawa nilai
       context.push(

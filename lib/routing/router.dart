@@ -102,10 +102,10 @@ final router = GoRouter(
           path: Routes.notifications,
           builder: (context, state) => const NotificationsScreen(),
         ),
-        GoRoute(
-          path: Routes.profile,
-          builder: (context, state) => ProfileScreen(),
-        ),
+        // GoRoute(
+        //   path: Routes.profile,
+        //   builder: (context, state) => ProfileScreen(),
+        // ),
         GoRoute(
           path: Routes.addPost,
           builder: (context, state) => const AddPostWidget(),

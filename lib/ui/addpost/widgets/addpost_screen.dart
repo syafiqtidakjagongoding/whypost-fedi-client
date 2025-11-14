@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobileapp/api/post_api.dart';
+import 'package:mobileapp/state/instance.dart';
 import 'dart:io';
+
+import 'package:mobileapp/state/token.dart';
 
 class AddPostWidget extends ConsumerStatefulWidget {
   const AddPostWidget({Key? key}) : super(key: key);
@@ -31,21 +34,55 @@ class _AddPostWidgetState extends ConsumerState<AddPostWidget> {
     });
   }
 
-  void submitPost(WidgetRef ref) {
+  // ===========================
+  // PERBAIKI DI SINI
+  // ===========================
+  Future<void> submitPost(WidgetRef ref) async {
     final content = _contentController.text.trim();
+
     if (content.isEmpty && _images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tulis sesuatu atau tambahkan gambar')),
       );
       return;
     }
-    List<File> files = _images.map((xfile) => File(xfile.path)).toList();
-    createPost(content: content, ref: ref, context: context, images: files);
-    // Bersihkan input setelah post
-    setState(() {
-      _contentController.clear();
-      _images.clear();
-    });
+
+    // 🔹 Convert XFile → File
+    final List<File> files = _images.map((x) => File(x.path)).toList();
+
+    final instanceUrl = ref.read(instanceProvider)?.url;
+    final accessToken = ref.read(tokenProvider);
+
+    if (instanceUrl == null || accessToken == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Anda belum login!')));
+      return;
+    }
+
+    try {
+      // 🔥 Kirim ke Fediverse
+      await createFediversePost(
+        content: content,
+        instanceUrl: instanceUrl,
+        accessToken: accessToken,
+        images: files,
+      );
+
+      // 🔥 Hapus input setelah sukses
+      setState(() {
+        _contentController.clear();
+        _images.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Postingan berhasil dibuat!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal membuat postingan: $e')));
+    }
   }
 
   @override
@@ -146,9 +183,7 @@ class _AddPostWidgetState extends ConsumerState<AddPostWidget> {
                             label: const Text('Tambah Gambar'),
                           ),
                           ElevatedButton(
-                            onPressed: () => {
-                              submitPost(ref)
-                              },
+                            onPressed: () => {submitPost(ref)},
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               padding: const EdgeInsets.symmetric(

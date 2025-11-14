@@ -22,27 +22,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _passwordController = TextEditingController();
   final _reasonController = TextEditingController();
 
-  // @override
-  // void initState() {
-  //   super.initState();
-
-  //   // Akses state saat pertama kali widget diload
-  //   final instanceProv = ref.read(instanceProvider);
-
-  //   if (instance != null) {
-  //     setState(() {
-  //       instance = instanceProv;
-  //     });
-  //     print(instance?.url);
-  //     print(instance?.isApproval);
-  //   } else {
-  //     print("Belum ada instance terpilih");
-  //     WidgetsBinding.instance.addPostFrameCallback((_) {
-  //       context.go(Routes.instance);
-  //     });
-  //   }
-  // }
-
   bool _loading = false;
   String? _resultMessage;
 
@@ -60,71 +39,72 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     setState(() {
       instance = instanceProv;
     });
-    // Validasi form dulu
+
     if (!_formKey.currentState!.validate()) return;
-    print(instance?.url);
-    print(instance?.isApproval);
+
+    if (instance == null) {
+      setState(() {
+        _resultMessage = "Instance belum diset!";
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _resultMessage = null;
     });
 
-    final baseUrl = instance?.url.trim();
-    if (baseUrl == null || baseUrl.isEmpty) {
-      throw Exception("Instance URL belum diset");
-    }
-
-    // Pastikan path ditambahkan dengan benar tanpa double-slash
+    final baseUrl = instance!.url.trim();
     final url = Uri.parse(baseUrl).resolve('/api/v1/accounts');
+
     final body = <String, String>{
       'username': _usernameController.text.trim(),
       'email': _emailController.text.trim(),
-      'password': _passwordController.text,
-      // beberapa instance mungkin minta agreement atau locale:
+      'password': _passwordController.text.trim(),
       'agreement': 'true',
       'locale': 'en',
-      if (instance?.isApproval == true) 'reason': _reasonController.text.trim(),
+      if (instance!.isApproval == true) 'reason': _reasonController.text.trim(),
     };
 
     try {
       final response = await http
-          .post(url, body: body)
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
           .timeout(const Duration(seconds: 20));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        // Biasanya server mengembalikan JSON berisi informasi akun
         final data = jsonDecode(response.body);
+
         setState(() {
           _resultMessage =
               'Registrasi berhasil! Username: ${data['username'] ?? _usernameController.text}';
         });
+
+        // TODO:
+        // Panggil login OAuth di sini
+        // _startOAuthLogin();
       } else {
-        // Coba ambil pesan error dari body (jika JSON)
-        String errMsg =
-            'Server merespons dengan status ${response.statusCode}.';
+        String err = "Status: ${response.statusCode}";
         try {
           final json = jsonDecode(response.body);
-          // banyak server kembalikan {"error": "..."} atau {"error_description": "..."}
-          if (json is Map) {
-            if (json['error'] != null) errMsg += '\n${json['error']}';
-            if (json['error_description'] != null)
-              errMsg += '\n${json['error_description']}';
-            if (json['errors'] != null)
-              errMsg += '\n${json['errors'].toString()}';
-          }
+          if (json['error'] != null) err += "\n${json['error']}";
+          if (json['error_description'] != null)
+            err += "\n${json['error_description']}";
+          if (json['errors'] != null) err += "\n${json['errors']}";
         } catch (_) {
-          // tidak JSON — gunakan body text
-          if (response.body.isNotEmpty) {
-            errMsg += '\n${response.body}';
-          }
+          if (response.body.isNotEmpty) err += "\n${response.body}";
         }
+
         setState(() {
-          _resultMessage = 'Gagal registrasi. $errMsg';
+          _resultMessage = "Gagal registrasi.\n$err";
         });
       }
     } catch (e) {
       setState(() {
-        _resultMessage = 'Terjadi kesalahan: $e';
+        _resultMessage = "Terjadi kesalahan: $e";
       });
     } finally {
       setState(() {

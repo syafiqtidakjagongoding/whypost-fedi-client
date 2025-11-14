@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobileapp/api/anon_login.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/token.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -19,7 +19,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _initGuest() async {
-    await initGuestUser(ref); // pasti ke-execute
+    final token = ref.read(tokenProvider);
+    if (token != null && token.isNotEmpty) {
+      context.go(Routes.home);
+      return;
+    }
     if (!mounted) return;
     context.go(Routes.instance); // navigasi ke HomeScreen
   }
