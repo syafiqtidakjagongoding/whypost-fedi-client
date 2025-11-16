@@ -17,7 +17,9 @@ class ChooseInstancePage extends ConsumerStatefulWidget {
 
 class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
   final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController(text: 'https://mastodon.social');
+  final _controller = TextEditingController(
+    text: 'https://fedi.syafiq-paradisam.my.id',
+  );
   bool _loading = false;
   String? _message;
 
@@ -70,39 +72,14 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
       setState(() {
         _message = 'Instance detected: $instance';
       });
-      final appReg = await http.post(
-        Uri.parse('$instance/api/v1/apps'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'client_name': 'WhyPost',
-          'redirect_uris': redirectUri,
-          'scopes': 'read write follow push',
-        }),
-      );
-
-      if (appReg.statusCode != 200) {
-        throw Exception("Failed to register app: ${appReg.body}");
-      }
-
-      final regJson = jsonDecode(appReg.body);
-
-      final clientId = regJson['client_id'];
-      final clientSecret = regJson['client_secret'];
+      jsonData['uri'] = normalizeUrl(jsonData['uri']);
 
       ref
           .read(instanceProvider.notifier)
-          .setInstance(
-            instance,
-            jsonData['approval_required'],
-            clientId,
-            clientSecret,
-          );
+          .setInstanceFromData(jsonData, redirectUri);
 
       // Setelah sukses, bisa pop ke halaman sebelumnya dengan membawa nilai
-      context.push(
-        Routes.instanceAuthPage,
-        extra: {"instanceData": jsonData, "authInstance": regJson},
-      );
+      context.push(Routes.instanceAuthPage, extra: {"instanceData": jsonData});
     } catch (e) {
       setState(() {
         _message = "Failed to checking instance $e";
@@ -112,6 +89,24 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
         _loading = false;
       });
     }
+  }
+
+  String normalizeUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return "";
+
+    var u = url.trim();
+
+    // Jika tidak ada scheme → pakai https secara default
+    if (!u.startsWith("http://") && !u.startsWith("https://")) {
+      u = "https://$u";
+    }
+
+    // Buang trailing slash
+    if (u.endsWith("/")) {
+      u = u.substring(0, u.length - 1);
+    }
+
+    return u;
   }
 
   @override

@@ -1,64 +1,72 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Model sederhana untuk menyimpan data instance
 class Instance {
-  final String url;
-  final bool isApproval;
+  final dynamic instanceData;     // data instance (misal info dari API)
   final String clientId;
   final String clientSecret;
   final String redirectUrl;
 
   const Instance({
-    required this.url,
-    this.isApproval = false,
+    required this.instanceData,
     required this.clientId,
     required this.clientSecret,
-    this.redirectUrl = "myapp://callback"
+   required this.redirectUrl
   });
 
-  /// Copy dengan perubahan tertentu (pattern immutable)
+  /// Copy with — mempertahankan nilai lama kalau tidak diubah
   Instance copyWith({
-    String? url,
-    bool? isApproval,
+    dynamic instanceData,
     String? clientId,
     String? clientSecret,
+    String? redirectUrl,
   }) {
     return Instance(
-      url: url ?? this.url,
-      isApproval: isApproval ?? this.isApproval,
+      instanceData: instanceData ?? this.instanceData,
       clientId: clientId ?? this.clientId,
       clientSecret: clientSecret ?? this.clientSecret,
+      redirectUrl: redirectUrl ?? this.redirectUrl,
     );
   }
 }
 
-/// StateNotifier untuk mengatur state instance
 class InstanceNotifier extends StateNotifier<Instance?> {
   InstanceNotifier() : super(null);
 
-  /// Set / update URL instance
-  void setInstance(String url, bool isApproval, String cId, String cSecret) {
+  /// 1️⃣ Set instance awal dari instanceData
+  void setInstanceFromData(dynamic instanceData, String redirectUrl) {
     state = Instance(
-      url: url,
-      isApproval: isApproval,
-      clientId: cId,
-      clientSecret: cSecret,
+      redirectUrl: redirectUrl,
+      instanceData: instanceData,
+      clientId: "",
+      clientSecret: "",
     );
   }
 
-  /// Hapus data instance (misalnya saat logout)
+  /// 2️⃣ Update credentials clientId dan clientSecret
+  void updateCredentials(String clientId, String clientSecret) {
+    if (state == null) return;
+
+    state = state!.copyWith(
+      clientId: clientId,
+      clientSecret: clientSecret,
+    );
+  }
+
+
+  /// 4️⃣ Hapus instance total
   void clear() {
     state = null;
   }
-
-  /// Getter cepat untuk ambil URL
-  String? get currentUrl => state?.url;
 }
+
 
 /// Provider utama untuk mengakses instance di seluruh app
 final instanceProvider = StateNotifierProvider<InstanceNotifier, Instance?>((
-  ref,
+  ref
 ) {
   return InstanceNotifier();
 });

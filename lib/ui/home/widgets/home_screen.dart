@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/state/token.dart';
-
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +15,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    final timelineAsync = ref.watch(homeTimelineProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -26,31 +27,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
-      // body: postsAsync.when(
-      //   data: (posts) => RefreshIndicator(
-      //     onRefresh: () async {
-      //       ref.invalidate(postsStreamProvider(user.uid));
-      //     },
-      //     child: posts.isEmpty
-      //         ? const Center(child: Text('Belum ada post'))
-      //         : ListView.builder(
-      //             physics: const AlwaysScrollableScrollPhysics(),
-      //             itemCount: posts.length,
-      //             itemBuilder: (context, index) {
-      //               final post = posts[index];
-      //               return PostCard(post: post);
-      //             },
-      //           ),
-      //   ),
-      //   loading: () =>
-      //       const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      //   error: (e, st) => Center(child: Text('Error: $e')),
-      // ),
+
+      body: timelineAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+
+        error: (e, _) {
+          Future.microtask(() {
+            context.go(Routes.instance);
+          });
+
+          return Center(child: Text("Error: $e"));
+        },
+        data: (posts) {
+          return ListView.builder(
+            itemCount: posts.length,
+            itemBuilder: (context, i) {
+              final post = posts[i];
+              final account = post['account'];
+              final avatar = account['avatar_static'] ?? '';
+              final displayName =
+                  account['display_name'] ?? account['username'];
+              final acct = account['acct'];
+              final content = post['content'] ?? '';
+              print(account.toString());
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Avatar
+                      CircleAvatar(
+                        backgroundImage: NetworkImage(avatar),
+                        radius: 24,
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Post content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              "@$acct",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(content, style: const TextStyle(fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           context.go(Routes.addPost);
         },
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
       ),
     );
   }

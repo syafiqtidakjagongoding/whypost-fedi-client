@@ -1,11 +1,15 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'package:go_router/go_router.dart';
+import 'package:mobileapp/api/auth_api.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/instance.dart';
+import 'package:mobileapp/state/instanceurl.dart';
+import 'package:mobileapp/state/token.dart';
 import 'package:mobileapp/ui/instance/widgets/RulesRenderer.dart';
 import 'package:mobileapp/ui/utils/InstanceLink.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,13 +17,8 @@ import 'TermsRenderer.dart';
 
 class InstanceAuthPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> instanceData;
-  final Map<String, dynamic> authInstanceInfo;
 
-  const InstanceAuthPage({
-    super.key,
-    required this.instanceData,
-    required this.authInstanceInfo,
-  });
+  const InstanceAuthPage({super.key, required this.instanceData});
 
   @override
   ConsumerState<InstanceAuthPage> createState() => _InstanceAuthPage();
@@ -27,28 +26,92 @@ class InstanceAuthPage extends ConsumerStatefulWidget {
 
 class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
   late Map<String, dynamic> instanceData;
-  late Map<String, dynamic> authInstanceInfo;
-
   Future<void> _handleAuthorizationToServer() async {
-    final redirectUri = dotenv.get("REDIRECT_URI");
-    final authUrl = Uri.https(instanceData['uri'], "/oauth/authorize", {
-      'response_type': 'code',
-      'client_id': authInstanceInfo['client_id'],
-      'redirect_uri': redirectUri,
-      'scope': 'read write follow push',
-    });
+    try {
+      final instance = ref.watch(instanceProvider);
+      final instanceData = instance!.instanceData;
+     
 
-    print("Auth URL: $authUrl");
+      final baseUri = instanceData['uri'];
+      if (baseUri == null) {
+        throw Exception("Instance base URL is missing");
+      }
+      final appRegUrl = Uri.parse(baseUri).resolve("/api/v1/apps");
 
-    // nanti kamu bisa buka ini memakai url_launcher:
-    await launchUrl(authUrl, mode: LaunchMode.externalApplication);
+      final appRegRes = await http.post(
+        appRegUrl,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'client_name': 'WhyPost',
+          'redirect_uris': instance.redirectUrl,
+          'scopes': 'read write follow push',
+        }),
+      );
+
+      if (appRegRes.statusCode != 200) {
+        throw Exception("Failed to register app: ${appRegRes.body}");
+      }
+
+      final regJson = jsonDecode(appRegRes.body);
+      final clientId = regJson['client_id'];
+      final clientSecret = regJson['client_secret'];
+
+      if (clientId == null || clientSecret == null) {
+        throw Exception("Invalid app registration response");
+      }
+
+      ref
+          .read(instanceProvider.notifier)
+          .updateCredentials(clientId, clientSecret);
+
+      // 2. Build OAuth URL
+      final authUrl = Uri.parse(baseUri).replace(
+        path: "/oauth/authorize",
+        queryParameters: {
+          'response_type': 'code',
+          'client_id': clientId,
+          'redirect_uri': instance.redirectUrl,
+          'scope': 'read write follow push',
+        },
+      );
+
+      // 3. Open Browser → Wait for Callback
+      final result = await FlutterWebAuth2.authenticate(
+        url: authUrl.toString(),
+        callbackUrlScheme: "whypostapp",
+      );
+      print("Redirect result: $result");
+
+      final code = Uri.parse(result).queryParameters['code'];
+      if (code == null) {
+        throw Exception("Authorization code missing from callback");
+      }
+
+      final accessToken = await getAccessToken(
+        instanceBaseUrl: baseUri,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        code: code,
+      );
+      // 5. Save Token
+      final tokenProv = ref.read(tokenRepoProvider);
+       final instanceUrlProv = ref.read(instanceRepoProvider);
+       await instanceUrlProv.saveToken(baseUri);
+      await tokenProv.saveToken(accessToken!);
+      if (context.mounted) {
+        // ignore: use_build_context_synchronously
+        context.go(Routes.home);
+      }
+    } catch (e, stack) {
+      debugPrint("OAuth Error: $e\n$stack");
+      rethrow; // biar bisa ditangkap UI
+    }
   }
 
   @override
   void initState() {
     super.initState();
     instanceData = widget.instanceData;
-    authInstanceInfo = widget.authInstanceInfo;
   }
 
   @override
@@ -57,7 +120,6 @@ class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
     final description = instanceData['short_description'] ?? '';
     final uri = instanceData['uri'] ?? '';
     final thumbnail = instanceData['thumbnail'];
-    final registrations = instanceData['registrations'] == true;
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),

@@ -20,9 +20,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   void _initGuest() async {
     final token = await ref.read(tokenProvider.future);
-    final instance = await ref.read(instanceUrlProvider.future);
-
-    if (token != null && token.isNotEmpty && instance != null) {
+  print(token);
+    if (token != null && token.isNotEmpty) {
       // ignore: use_build_context_synchronously
       context.go(Routes.home);
     } else {

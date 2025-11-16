@@ -1,11 +1,34 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobileapp/domain/posts.dart';
-import 'package:mobileapp/state/token.dart';
 import 'package:http/http.dart' as http;
-import 'package:mime/mime.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobileapp/routing/routes.dart';
+
+Future<List<dynamic>> fetchHomeTimeline(
+  String baseUrl,
+  String accessToken,
+  int limit,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/timelines/public").replace(
+    queryParameters: {
+      'limit': limit.toString(), // misal limit = 20
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
+
+  return jsonDecode(res.body);
+}
 
 Future<void> createFediversePost({
   required String content,

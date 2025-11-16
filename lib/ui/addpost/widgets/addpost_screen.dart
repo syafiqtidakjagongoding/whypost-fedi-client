@@ -50,7 +50,7 @@ class _AddPostWidgetState extends ConsumerState<AddPostWidget> {
     // 🔹 Convert XFile → File
     final List<File> files = _images.map((x) => File(x.path)).toList();
 
-    final instanceUrl = ref.read(instanceProvider)?.url;
+    final instanceUrl = ref.read(instanceProvider)?.instanceData['uri'];
     final accessToken = await ref.read(tokenProvider.future);
 
     if (instanceUrl == null || accessToken == null) {

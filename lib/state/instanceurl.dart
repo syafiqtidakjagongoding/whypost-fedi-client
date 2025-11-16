@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class TokenRepository {
-  static const _keyToken = "access_token";
+class InstanceRepository {
+  static const _keyToken = "instance_url";
 
   /// simpan access token
-  Future<void> saveToken(String token) async {
+  Future<void> saveToken(String url) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyToken, token);
+    await prefs.setString(_keyToken, url);
   }
 
   /// ambil access token
@@ -30,9 +30,10 @@ class TokenRepository {
   }
 }
 
-final tokenRepoProvider = Provider((ref) => TokenRepository());
+final instanceRepoProvider = Provider((ref) => InstanceRepository());
 
 /// provider hanya untuk token
-final tokenProvider = FutureProvider<String?>((ref) async {
-  return ref.read(tokenRepoProvider).loadToken();
+final instanceUrlProvider = FutureProvider<String?>((ref) async {
+
+  return ref.read(instanceRepoProvider).loadToken();
 });

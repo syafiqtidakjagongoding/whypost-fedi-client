@@ -7,7 +7,6 @@ import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
 import 'package:mobileapp/ui/profile/widgets/profile_screen.dart';
 import 'package:mobileapp/ui/instance/widgets/ChoosingInstance.dart';
 import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
-import 'package:mobileapp/ui/auth/widgets/RegisterScreen.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
 
@@ -15,10 +14,6 @@ final router = GoRouter(
   initialLocation: Routes.splash,
   routes: [
     GoRoute(path: Routes.splash, builder: (context, state) => SplashScreen()),
-    GoRoute(
-      path: Routes.register,
-      builder: (context, state) => const RegisterPage(),
-    ),
     GoRoute(
       path: Routes.instance,
       builder: (context, state) => const ChooseInstancePage(),
@@ -29,10 +24,8 @@ final router = GoRouter(
         final extra = state.extra as Map<String, dynamic>;
 
         final instanceData = extra["instanceData"] as Map<String, dynamic>;
-        final authInstanceInfo = extra["authInstance"] as Map<String, dynamic>;
         return InstanceAuthPage(
           instanceData: instanceData,
-          authInstanceInfo: authInstanceInfo,
         );
       },
     ),
@@ -108,10 +101,10 @@ final router = GoRouter(
           path: Routes.notifications,
           builder: (context, state) => const NotificationsScreen(),
         ),
-        // GoRoute(
-        //   path: Routes.profile,
-        //   builder: (context, state) => ProfileScreen(),
-        // ),
+        GoRoute(
+          path: Routes.profile,
+          builder: (context, state) => ProfileScreen(),
+        ),
         GoRoute(
           path: Routes.addPost,
           builder: (context, state) => const AddPostWidget(),
