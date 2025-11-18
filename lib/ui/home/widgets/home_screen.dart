@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobileapp/routing/router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/timeline.dart';
-import 'package:mobileapp/state/token.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/ui/utils/FediverseImage.dart';
+import 'package:mobileapp/ui/utils/InstanceLink.dart';
+import 'package:mobileapp/ui/widgets/post_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -13,9 +18,26 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // List<dynamic> posts = [];
+  // int currentPage = 1;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      final notifier = ref.read(homeTimelineProvider.notifier);
+
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        notifier.loadMore(); // INFINITE SCROLL TRIGGER
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final timelineAsync = ref.watch(homeTimelineProvider);
+    final timeline = ref.watch(homeTimelineProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -27,78 +49,105 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
-
-      body: timelineAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-
-        error: (e, _) {
-          Future.microtask(() {
-            context.go(Routes.instance);
-          });
-
-          return Center(child: Text("Error: $e"));
-        },
-        data: (posts) {
-          return ListView.builder(
-            itemCount: posts.length,
-            itemBuilder: (context, i) {
-              final post = posts[i];
-              final account = post['account'];
-              final avatar = account['avatar_static'] ?? '';
-              final displayName =
-                  account['display_name'] ?? account['username'];
-              final acct = account['acct'];
-              final content = post['content'] ?? '';
-              print(account.toString());
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Avatar
-                      CircleAvatar(
-                        backgroundImage: NetworkImage(avatar),
-                        radius: 24,
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Post content
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              "@$acct",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(content, style: const TextStyle(fontSize: 14)),
-                          ],
-                        ),
-                      ),
-                    ],
+      drawer: Drawer(
+        child: Column(
+          children: [
+            // Header
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Color.fromRGBO(255, 117, 31, 1)),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  'Menu',
+                  style: TextStyle(
+                    fontSize: 26,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              );
-            },
-          );
+              ),
+            ),
+
+            // ==== Menu list ====
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text("Beranda"),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text("Profil"),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text("Pengaturan"),
+              onTap: () {},
+            ),
+
+            // ===== Spacer mendorong logout ke bawah =====
+            const Spacer(),
+
+            // ==== LOGOUT BUTTON ====
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: const Text(
+                  "Logout",
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text("Konfirmasi Logout"),
+                        content: const Text("Apakah kamu yakin ingin logout?"),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text("OK"),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (confirm == true) {
+                    final credential = ref.read(credentialRepoProvider);
+                    await credential.clearAll();
+                    if (context.mounted) {
+                      context.go(Routes.instance);
+                    }
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(homeTimelineProvider.notifier).refresh();
         },
+        child: timeline.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+
+          error: (e, _) {
+            router.go(Routes.instance);
+            return Center(child: Text("Error: $e"));
+          },
+          data: (posts) {
+            print(posts);
+            return PostCard(posts: posts, scrollCtrl: _scrollController);
+          },
+        ),
       ),
 
       floatingActionButton: FloatingActionButton(

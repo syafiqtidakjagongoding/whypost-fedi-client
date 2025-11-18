@@ -1,15 +1,12 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'package:mobileapp/api/auth_api.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/instance.dart';
-import 'package:mobileapp/state/instanceurl.dart';
-import 'package:mobileapp/state/token.dart';
+import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/ui/instance/widgets/RulesRenderer.dart';
 import 'package:mobileapp/ui/utils/InstanceLink.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,11 +23,12 @@ class InstanceAuthPage extends ConsumerStatefulWidget {
 
 class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
   late Map<String, dynamic> instanceData;
+
   Future<void> _handleAuthorizationToServer() async {
     try {
       final instance = ref.watch(instanceProvider);
       final instanceData = instance!.instanceData;
-     
+      final credential = ref.read(credentialRepoProvider);
 
       final baseUri = instanceData['uri'];
       if (baseUri == null) {
@@ -60,11 +58,6 @@ class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
         throw Exception("Invalid app registration response");
       }
 
-      ref
-          .read(instanceProvider.notifier)
-          .updateCredentials(clientId, clientSecret);
-
-      // 2. Build OAuth URL
       final authUrl = Uri.parse(baseUri).replace(
         path: "/oauth/authorize",
         queryParameters: {
@@ -74,36 +67,13 @@ class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
           'scope': 'read write follow push',
         },
       );
+     await credential.saveCredentials("", baseUri, clientId, clientSecret);
 
-      // 3. Open Browser → Wait for Callback
-      final result = await FlutterWebAuth2.authenticate(
-        url: authUrl.toString(),
-        callbackUrlScheme: "whypostapp",
-      );
-      print("Redirect result: $result");
+      await launchUrl(authUrl, mode: LaunchMode.externalApplication);
 
-      final code = Uri.parse(result).queryParameters['code'];
-      if (code == null) {
-        throw Exception("Authorization code missing from callback");
-      }
-
-      final accessToken = await getAccessToken(
-        instanceBaseUrl: baseUri,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        code: code,
-      );
-      // 5. Save Token
-      final tokenProv = ref.read(tokenRepoProvider);
-       final instanceUrlProv = ref.read(instanceRepoProvider);
-       await instanceUrlProv.saveToken(baseUri);
-      await tokenProv.saveToken(accessToken!);
-      if (context.mounted) {
-        // ignore: use_build_context_synchronously
-        context.go(Routes.home);
-      }
+    
     } catch (e, stack) {
-      debugPrint("OAuth Error: $e\n$stack");
+      debugPrint("OAuth Error: $e\n");
       rethrow; // biar bisa ditangkap UI
     }
   }
@@ -167,7 +137,9 @@ class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: _handleAuthorizationToServer,
+                      onPressed: () async {
+                        _handleAuthorizationToServer();
+                      },
                       label: const Text("Next"),
                     ),
                   ],

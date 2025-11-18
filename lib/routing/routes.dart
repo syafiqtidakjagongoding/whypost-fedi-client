@@ -9,4 +9,5 @@ abstract final class Routes {
   static const register = "/register";
   static const instance = "/chooseinstance";
   static const instanceAuthPage = "/instanceauth";
+  static const authProcess = "/authProcess";
 }

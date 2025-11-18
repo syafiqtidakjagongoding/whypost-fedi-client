@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/token.dart';
+import 'package:mobileapp/state/credentials.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -19,9 +19,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _initGuest() async {
-    final token = await ref.read(tokenProvider.future);
-  print(token);
-    if (token != null && token.isNotEmpty) {
+    final credential = await ref.read(credentialProvider.future);
+    if (credential.accToken != null && credential.instanceUrl != null) {
       // ignore: use_build_context_synchronously
       context.go(Routes.home);
     } else {

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/ui/addpost/widgets/addpost_screen.dart';
 import 'package:mobileapp/ui/home/widgets/home_screen.dart';
+import 'package:mobileapp/ui/instance/widgets/AuthProcess.dart';
 import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
 import 'package:mobileapp/ui/profile/widgets/profile_screen.dart';
 import 'package:mobileapp/ui/instance/widgets/ChoosingInstance.dart';
@@ -10,7 +11,11 @@ import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
 
+final GlobalKey<NavigatorState> routerNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 final router = GoRouter(
+  navigatorKey: routerNavigatorKey,
   initialLocation: Routes.splash,
   routes: [
     GoRoute(path: Routes.splash, builder: (context, state) => SplashScreen()),
@@ -24,9 +29,14 @@ final router = GoRouter(
         final extra = state.extra as Map<String, dynamic>;
 
         final instanceData = extra["instanceData"] as Map<String, dynamic>;
-        return InstanceAuthPage(
-          instanceData: instanceData,
-        );
+        return InstanceAuthPage(instanceData: instanceData);
+      },
+    ),
+    GoRoute(
+      path: Routes.authProcess,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return AuthProcess(code: extra["code"]);
       },
     ),
 
@@ -103,7 +113,11 @@ final router = GoRouter(
         ),
         GoRoute(
           path: Routes.profile,
-          builder: (context, state) => ProfileScreen(),
+          builder: (context, state) {
+           
+
+            return ProfileScreen(id: null);
+          },
         ),
         GoRoute(
           path: Routes.addPost,
@@ -118,7 +132,7 @@ final router = GoRouter(
 int _calculateIndex(String location) {
   if (location.startsWith(Routes.home)) return 0;
   if (location.startsWith(Routes.search)) return 1;
-  if (location.startsWith(Routes.notifications)) return 3;
+  if (location.startsWith(Routes.notifications)) return 2;
   if (location.startsWith(Routes.profile)) return 3;
   return 0;
 }

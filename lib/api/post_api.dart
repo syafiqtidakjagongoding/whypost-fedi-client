@@ -8,10 +8,14 @@ Future<List<dynamic>> fetchHomeTimeline(
   String baseUrl,
   String accessToken,
   int limit,
+  String? maxId,
+  String? sinceId
 ) async {
   final uri = Uri.parse("$baseUrl/api/v1/timelines/public").replace(
     queryParameters: {
       'limit': limit.toString(), // misal limit = 20
+      'max_id': maxId,
+      'since_id': sinceId
     },
   );
 

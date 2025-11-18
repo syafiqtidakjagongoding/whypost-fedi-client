@@ -18,7 +18,7 @@ class ChooseInstancePage extends ConsumerStatefulWidget {
 class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController(
-    text: 'https://fedi.syafiq-paradisam.my.id',
+    text: 'https://mastodon.social',
   );
   bool _loading = false;
   String? _message;
@@ -26,8 +26,9 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
   String? _validateInstance(String? v) {
     if (v == null || v.trim().isEmpty) return 'Please enter the instance URL.';
     final text = v.trim();
-    if (!text.startsWith('http'))
+    if (!text.startsWith('http')) {
       return 'Use the full URL format (https://...).';
+    }
     if (!text.contains('.')) return 'The instance URL looks invalid.';
     return null;
   }
@@ -107,6 +108,11 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
     }
 
     return u;
+  }
+
+  @override
+  void initState() {
+    super.initState();
   }
 
   @override

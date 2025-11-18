@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobileapp/api/post_api.dart';
-import 'package:mobileapp/state/instance.dart';
 import 'dart:io';
 
-import 'package:mobileapp/state/token.dart';
+import 'package:mobileapp/state/credentials.dart';
 
 class AddPostWidget extends ConsumerStatefulWidget {
   const AddPostWidget({Key? key}) : super(key: key);
@@ -50,10 +49,9 @@ class _AddPostWidgetState extends ConsumerState<AddPostWidget> {
     // 🔹 Convert XFile → File
     final List<File> files = _images.map((x) => File(x.path)).toList();
 
-    final instanceUrl = ref.read(instanceProvider)?.instanceData['uri'];
-    final accessToken = await ref.read(tokenProvider.future);
+    final credential = await ref.read(credentialProvider.future);
 
-    if (instanceUrl == null || accessToken == null) {
+    if (credential.instanceUrl == null || credential.accToken == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Anda belum login!')));
@@ -64,8 +62,8 @@ class _AddPostWidgetState extends ConsumerState<AddPostWidget> {
       // 🔥 Kirim ke Fediverse
       await createFediversePost(
         content: content,
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
+        instanceUrl: credential.instanceUrl!,
+        accessToken: credential.accToken!,
         images: files,
       );
 

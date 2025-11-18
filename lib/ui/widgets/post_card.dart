@@ -1,302 +1,365 @@
-// import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:mobileapp/api/bookmark_api.dart';
-// import 'package:mobileapp/api/user_api.dart';
-// import 'package:mobileapp/state/postNotifier.dart';
-// import 'package:mobileapp/state/user.dart';
-// import 'package:mobileapp/ui/viewpost/viewpost_screen.dart';
-// import 'package:timeago/timeago.dart' as timeago;
-// import 'package:flutter/material.dart';
-// import 'package:mobileapp/domain/posts.dart';
-// import 'package:mobileapp/ui/widgets/post_images.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobileapp/ui/utils/FediverseImage.dart';
+import 'package:mobileapp/ui/utils/InstanceLink.dart';
+import 'package:mobileapp/ui/viewpost/viewpost_screen.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-// class PostCard extends ConsumerStatefulWidget {
-//   final Posts post; // ✅ terima data post lewat constructor
+class PostCard extends ConsumerStatefulWidget {
+  final List<dynamic> posts;
+  final ScrollController scrollCtrl;
 
-//   const PostCard({Key? key, required this.post}) : super(key: key);
+  const PostCard({Key? key, required this.posts, required this.scrollCtrl})
+    : super(key: key);
 
-//   @override
-//   ConsumerState<PostCard> createState() => _PostCardState(); // ✅ buat State
-// }
+  @override
+  ConsumerState<PostCard> createState() => _PostCardState();
+}
 
-// class _PostCardState extends ConsumerState<PostCard> {
-//   late Posts post;
-//   late bool isLiked;
-//   late bool isBookmarked;
-//   late int totalLiked;
-//   late bool isUserPost = false;
+class _PostCardState extends ConsumerState<PostCard> {
+  late List<dynamic> posts;
 
-//   @override
-//   void initState() {
-//     super.initState();
-//     post = widget.post; // ✅ akses dari widget
-//     isLiked = post.isLikedByMe; // sekarang aman karena post sudah diisi
-//     totalLiked = post.totalLiked;
-//     isBookmarked = post.isBookmarked;
-//     isUserPost = checkIsUserPost(post.userId);
-//   }
+  List<Widget> buildPostMenu(bool isUserPost) {
+    final menu = <Widget>[];
 
-//   bool checkIsUserPost(String userId) {
-//     final user = ref.read(userProvider);
-//     return userId == user!.uid;
-//   }
+    if (isUserPost) {
+      menu.add(
+        ListTile(
+          leading: Icon(Icons.edit, color: Colors.blue),
+          title: Text('Edit Postingan'),
+          onTap: () {},
+        ),
+      );
+      menu.add(
+        ListTile(
+          leading: Icon(Icons.delete, color: Colors.red),
+          title: Text('Hapus Postingan'),
+          onTap: () {},
+        ),
+      );
+    } else {
+      menu.add(
+        ListTile(
+          leading: Icon(Icons.flag, color: Colors.orange),
+          title: Text('Laporkan Postingan'),
+          onTap: () {},
+        ),
+      );
+    }
 
-//   void toggleLike() {
-//     final user = ref.read(userProvider);
-//     final notifier = ref.read(postsNotifierProvider(user!.uid).notifier);
+    return menu;
+  }
 
-//     // Optimistic UI update
-//     setState(() {
-//       isLiked = !isLiked;
-//       if (isLiked) {
-//         totalLiked += 1;
-//       } else {
-//         totalLiked = totalLiked > 0 ? totalLiked - 1 : 0;
-//       }
+  @override
+  void initState() {
+    super.initState();
+    posts = widget.posts;
+  }
 
-//       post = post.copyWith(totalLiked: totalLiked, isLikedByMe: isLiked);
-//     });
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      controller: widget.scrollCtrl,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: posts.length,
+      itemBuilder: (context, i) {
+        final post = posts[i];
+        final account = post['account'];
+        final media = post['media_attachments'] as List<dynamic>? ?? [];
+        final avatar = account['avatar_static'] ?? '';
+        final displayName = account['display_name'] ?? account['username'];
+        final acct = account['acct'];
+        final content = post['content'] ?? '';
+        final createdAt = post['created_at'];
+        final timeAgo = createdAt != null
+            ? timeago.format(DateTime.parse(createdAt))
+            : '';
 
-//     // Update ke backend (Firestore/API)
-//     notifier.toggleLike(post.id, isLiked);
-//     ref.invalidate(userPosttreamProvider);
-//     ref.invalidate(bookmarkPostsStreamProvider);
-//     ref.invalidate(likedPostsStreamProvider);
-//     ref.invalidate(postsStreamProvider);
-//   }
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Section
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Avatar with gradient ring
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.fromRGBO(255, 117, 31, 1),
+                              Color.fromRGBO(255, 117, 31, 0.6),
+                            ],
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            backgroundImage: NetworkImage(avatar),
+                            radius: 22,
+                            backgroundColor: Colors.grey[200],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
 
-//   void toggleBookmark() {
-//     final user = ref.read(userProvider);
-//     final notifier = ref.read(postsNotifierProvider(user!.uid).notifier);
+                      // User info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    "@$acct",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[600],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (timeAgo.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    child: Text(
+                                      "•",
+                                      style: TextStyle(color: Colors.grey[400]),
+                                    ),
+                                  ),
+                                  Text(
+                                    timeAgo,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
 
-//     setState(() {
-//       isBookmarked = !isBookmarked;
-//       post = post.copyWith(isBookmarked: isBookmarked);
-//     });
+                      // More menu button
+                      IconButton(
+                        icon: Icon(Icons.more_horiz, color: Colors.grey[600]),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
+                            ),
+                            builder: (context) => Container(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: buildPostMenu(false),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
 
-//     notifier.toggleBookmark(post.id, isBookmarked);
-//     ref.invalidate(userPosttreamProvider);
-//     ref.invalidate(bookmarkPostsStreamProvider);
-//     ref.invalidate(likedPostsStreamProvider);
+                // Content Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Html(
+                    data: content,
+                    onLinkTap: (url, attributes, element) {
+                      final uri = Uri.parse(
+                        url!.startsWith('http') ? url : 'https://$url',
+                      );
+                      if (uri != null)
+                        launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    style: {
+                      "body": Style(
+                        fontSize: FontSize(15),
+                        margin: Margins.zero,
+                        padding: HtmlPaddings.zero,
+                        lineHeight: LineHeight(1.5),
+                      ),
+                      "p": Style(
+                        margin: Margins.only(bottom: 8),
+                        color: Colors.black87,
+                      ),
+                      "b": Style(fontWeight: FontWeight.bold),
+                      "i": Style(fontStyle: FontStyle.italic),
+                      "span": Style(
+                        fontSize: FontSize(15),
+                        color: Colors.black87,
+                      ),
+                      "a": Style(
+                        color: Color.fromRGBO(255, 117, 31, 1),
+                        textDecoration: TextDecoration.none,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    },
+                  ),
+                ),
 
-//     ref.invalidate(postsStreamProvider);
-//   }
+                // Media attachments
+                if (media.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Column(
+                      children: media.asMap().entries.map((entry) {
+                        final m = entry.value;
+                        final url = m['url'];
+                        final preview = m['preview_url'];
+                        final isLast = entry.key == media.length - 1;
 
-//   List<Widget> buildPostMenu(bool isUserPost) {
-//     final menu = <Widget>[];
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: isLast
+                                  ? Radius.circular(16)
+                                  : Radius.zero,
+                              bottomRight: isLast
+                                  ? Radius.circular(16)
+                                  : Radius.zero,
+                            ),
+                            child: FediverseImage(
+                              url: preview ?? url,
+                              width: double.infinity,
+                              height: 280,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
 
-//     if (isUserPost) {
-//       menu.add(
-//         ListTile(
-//           leading: Icon(Icons.edit, color: Colors.blue),
-//           title: Text('Edit Postingan'),
-//           onTap: () {},
-//         ),
-//       );
-//       menu.add(
-//         ListTile(
-//           leading: Icon(Icons.delete, color: Colors.red),
-//           title: Text('Hapus Postingan'),
-//           onTap: () {},
-//         ),
-//       );
-//     } else {
-//       menu.add(
-//         ListTile(
-//           leading: Icon(Icons.flag, color: Colors.orange),
-//           title: Text('Laporkan Postingan'),
-//           onTap: () {},
-//         ),
-//       );
-//     }
+                // Action buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _ActionButton(
+                        icon: Icons.chat_bubble_outline,
+                        label: post['replies_count']?.toString() ?? '0',
+                        onTap: () {},
+                      ),
+                      _ActionButton(
+                        icon: Icons.repeat,
+                        label: post['reblogs_count']?.toString() ?? '0',
+                        onTap: () {},
+                        color: Colors.green,
+                      ),
+                      _ActionButton(
+                        icon: Icons.favorite_border,
+                        label: post['favourites_count']?.toString() ?? '0',
+                        onTap: () {},
+                        color: Colors.red,
+                      ),
+                      _ActionButton(
+                        icon: Icons.share_outlined,
+                        label: '',
+                        onTap: () {},
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
-//     return menu;
-//   }
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return InkWell(
-//       onTap: () {
-//         Navigator.push(
-//           context,
-//           MaterialPageRoute(
-//             builder: (context) => ViewpostScreen(post: post), // ← kirim datanya
-//           ),
-//         );
-//       },
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
 
-//       child: Card(
-//         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-//         child: Padding(
-//           padding: const EdgeInsets.all(12),
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Row(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   const CircleAvatar(
-//                     radius: 20,
-//                     child: Icon(Icons.person, size: 30, color: Colors.white),
-//                   ),
-//                   SizedBox(width: 10),
-//                   // Expanded supaya area nickname + time memenuhi sisa ruang
-//                   Expanded(
-//                     child: Row(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         // Nama user di kiri
-//                         Expanded(
-//                           child: Column(
-//                             crossAxisAlignment: CrossAxisAlignment.start,
-//                             children: [
-//                               // Baris atas: nickname, username, waktu, icon more
-//                               Row(
-//                                 crossAxisAlignment: CrossAxisAlignment.start,
-//                                 children: [
-//                                   // Nama + username
-//                                   Expanded(
-//                                     child: Column(
-//                                       crossAxisAlignment:
-//                                           CrossAxisAlignment.start,
-//                                       children: [
-//                                         Text(
-//                                           post.nickname ?? "Anonymous",
-//                                           style: const TextStyle(
-//                                             fontWeight: FontWeight.bold,
-//                                           ),
-//                                           overflow: TextOverflow.ellipsis,
-//                                         ),
-//                                         const SizedBox(height: 2),
-//                                         Text(
-//                                           "@${post.username ?? ''}",
-//                                           overflow: TextOverflow.ellipsis,
-//                                           maxLines: 1,
-//                                           style: const TextStyle(
-//                                             fontSize: 12,
-//                                             color: Colors.grey,
-//                                           ),
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   ),
-//                                   const SizedBox(width: 8),
-//                                   Row(
-//                                     crossAxisAlignment: CrossAxisAlignment
-//                                         .center, // sejajarkan di tengah
-//                                     children: [
-//                                       Text(
-//                                         timeago.format(
-//                                           post.createdAt.toLocal(),
-//                                         ),
-//                                         style: const TextStyle(
-//                                           fontSize: 12,
-//                                           color: Colors.grey,
-//                                         ),
-//                                       ),
-//                                       const SizedBox(width: 4),
-//                                       GestureDetector(
-//                                         onTap: () {
-//                                           showModalBottomSheet(
-//                                             context: context,
-//                                             builder: (context) {
-//                                               return SafeArea(
-//                                                 child: Column(
-//                                                   mainAxisSize:
-//                                                       MainAxisSize.min,
-//                                                   children: buildPostMenu(
-//                                                     isUserPost,
-//                                                   ),
-//                                                 ),
-//                                               );
-//                                             },
-//                                           );
-//                                         },
-//                                         child: const Padding(
-//                                           padding: EdgeInsets.all(
-//                                             4.0,
-//                                           ), // kecilin area sentuh
-//                                           child: Icon(
-//                                             Icons.more_vert,
-//                                             size:
-//                                                 18, // kecilin biar proporsional dengan teks
-//                                             color: Colors.grey,
-//                                           ),
-//                                         ),
-//                                       ),
-//                                     ],
-//                                   ),
-//                                 ],
-//                               ),
-//                             ],
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               // Konten teks
-//               const SizedBox(height: 8),
-//               Text(post.content),
-//               const SizedBox(height: 8),
+  @override
+  Widget build(BuildContext context) {
+    final buttonColor = color ?? Colors.grey[700];
 
-//               PostImages(images: post.images),
-
-//               const SizedBox(height: 8),
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.start,
-//                 children: [
-//                   IconButton(
-//                     icon: Icon(
-//                       isLiked ? Icons.favorite : Icons.favorite_border,
-//                     ), // ganti ke Icons.favorite kalau sudah like
-//                     color: Colors.red,
-//                     onPressed: () {
-//                       toggleLike();
-//                     },
-//                   ),
-//                   Text(
-//                     totalLiked.toString(), // contoh jumlah like
-//                     style: TextStyle(fontSize: 14),
-//                   ),
-//                   SizedBox(width: 16),
-
-//                   // 💬 Comment Button
-//                   IconButton(
-//                     icon: Icon(Icons.comment_outlined),
-//                     color: Colors.grey[700],
-//                     onPressed: () {
-//                       Navigator.push(
-//                         context,
-//                         MaterialPageRoute(
-//                           builder: (context) =>
-//                               ViewpostScreen(post: post), // ← kirim datanya
-//                         ),
-//                       );
-//                     },
-//                   ),
-//                   Text(
-//                     post.totalComment.toString(),
-//                     style: TextStyle(fontSize: 14),
-//                   ),
-//                   SizedBox(width: 16),
-
-//                   // 📤 Share Button
-//                   IconButton(
-//                     icon: Icon(
-//                       isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-//                     ),
-//                     color: Colors.grey[700],
-//                     onPressed: () {
-//                       toggleBookmark();
-//                     },
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: buttonColor),
+            if (label.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: buttonColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

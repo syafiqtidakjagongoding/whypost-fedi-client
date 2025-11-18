@@ -1,21 +1,86 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/post_api.dart';
-import 'package:mobileapp/state/instance.dart';
-import 'package:mobileapp/state/instanceurl.dart';
-import 'package:mobileapp/state/token.dart';
+import 'package:mobileapp/state/credentials.dart';
 
-final homeTimelineProvider = FutureProvider<List<dynamic>>((ref) async {
-  try {
-    final instance = await ref.read(instanceUrlProvider.future);
-    final token = await ref.read(tokenProvider.future);
+class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
+  String? maxId;
+  String? lastSinceId;
+  bool hasMore = true;
 
-    if (token == null || instance == null) {
-      throw Exception("Missing instance or token");
-    }
-    final resp = await fetchHomeTimeline(instance, token, 20);
-    return resp;
-  } catch (e) {
-    print(e);
-    throw e;
+  @override
+  Future<List<dynamic>> build() async {
+    return await _loadInitial();
   }
-});
+
+  Future<List<dynamic>> _loadInitial() async {
+    final credential = await ref.watch(credentialProvider.future);
+
+    final posts = await fetchHomeTimeline(
+      credential.instanceUrl!,
+      credential.accToken!,
+      30,
+     null,
+      null
+    );
+
+    if (posts.isNotEmpty) {
+      maxId = posts.last['id']; // cursor for pagination
+      lastSinceId = posts.first['id'];
+    }
+
+    return posts;
+  }
+ Future<void> loadMore() async {
+
+    try {
+      final credential = await ref.watch(credentialProvider.future);
+
+      final morePosts = await fetchHomeTimeline(
+        credential.instanceUrl!,
+        credential.accToken!,
+        30,
+        maxId,
+        null
+      );
+
+      if (morePosts.isNotEmpty) {
+        maxId = morePosts.last['id'];
+
+        state = AsyncData([
+          ...state.value!,
+          ...morePosts,
+        ]);
+      }
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  Future<void> refresh() async {
+    try {
+      final credential = await ref.watch(credentialProvider.future);
+
+      final newPosts = await fetchHomeTimeline(
+        credential.instanceUrl!,
+        credential.accToken!,
+        30,
+        null,
+        null, // Only newer posts
+      );
+
+      if (newPosts.isNotEmpty) {
+        lastSinceId = newPosts.first['id'];
+
+        // prepend posts terbaru
+        state = AsyncData(newPosts);
+      }
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+}
+
+final homeTimelineProvider =
+    AsyncNotifierProvider<HomeTimelineNotifier, List<dynamic>>(
+      () => HomeTimelineNotifier(),
+    );
