@@ -11,11 +11,8 @@ import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
 
-final GlobalKey<NavigatorState> routerNavigatorKey =
-    GlobalKey<NavigatorState>();
 
 final router = GoRouter(
-  navigatorKey: routerNavigatorKey,
   initialLocation: Routes.splash,
   routes: [
     GoRoute(path: Routes.splash, builder: (context, state) => SplashScreen()),

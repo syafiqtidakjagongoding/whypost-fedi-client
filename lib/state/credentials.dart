@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -30,6 +31,10 @@ class CredentialsRepository {
     String clientSecret,
   ) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyToken);
+    await prefs.remove(_instanceurl);
+    await prefs.remove(_clientId);
+    await prefs.remove(_clientSecret);
     await prefs.setString(_keyToken, token);
     await prefs.setString(_instanceurl, url);
     await prefs.setString(_clientId, clientId);
@@ -43,6 +48,7 @@ class CredentialsRepository {
     final instanceUrl = prefs.getString(_instanceurl);
     final clientId = prefs.getString(_clientId);
     final clientSecret = prefs.getString(_clientSecret);
+    debugPrint("instanceurl + $instanceUrl");
     return Credentials(
       accToken: token,
       instanceUrl: instanceUrl,
@@ -59,7 +65,10 @@ class CredentialsRepository {
     final clientSecret = prefs.getString(_clientSecret);
     final token = prefs.getString(_keyToken);
 
-    if (token != null && clientId != null && clientSecret != null) {
+    if (instanceUrl != null &&
+        token != null &&
+        clientId != null &&
+        clientSecret != null) {
       await http.post(
         Uri.parse('$instanceUrl/oauth/revoke'),
         body: {
@@ -74,6 +83,7 @@ class CredentialsRepository {
     await prefs.remove(_instanceurl);
     await prefs.remove(_clientId);
     await prefs.remove(_clientSecret);
+    await prefs.clear();
   }
 }
 

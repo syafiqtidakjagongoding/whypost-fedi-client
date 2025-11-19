@@ -27,15 +27,15 @@ class MyApp extends ConsumerStatefulWidget {
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
 }
+
 class _MyAppState extends ConsumerState<MyApp> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription? _sub;
   bool _handled = false;
+  Timer? _resetTimer;
 
   @override
   void initState() {
     super.initState();
-    // Beri jeda agar router selesai inisialisasi
     Future.delayed(const Duration(milliseconds: 500), () {
       initDeepLinks();
     });
@@ -53,19 +53,20 @@ class _MyAppState extends ConsumerState<MyApp> {
       final code = uri.queryParameters['code'];
       if (code != null) {
         _handled = true;
-        
-        // Gunakan scheduleMicrotask untuk memastikan router ready
-        scheduleMicrotask(() {
+
+        // Cancel timer lama jika ada
+        _resetTimer?.cancel();
+
+        // Navigate dengan delay
+        Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
             debugPrint("Navigating to auth process with code: $code");
-            // Simpan code ke provider dulu
-            ref.read(oauthCodeProvider.notifier).state = code;
             router.go(Routes.authProcess, extra: {"code": code});
           }
         });
 
-        // Reset flag setelah 3 detik untuk handle retry
-        Future.delayed(const Duration(seconds: 3), () {
+        // Reset flag setelah 5 detik
+        _resetTimer = Timer(const Duration(seconds: 5), () {
           _handled = false;
         });
       }
@@ -75,9 +76,11 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void dispose() {
     _sub?.cancel();
+    _resetTimer?.cancel();
     super.dispose();
   }
 
+  // ... rest of code
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(

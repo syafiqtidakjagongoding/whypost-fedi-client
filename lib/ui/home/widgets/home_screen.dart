@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,7 +40,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(homeTimelineProvider);
-
+  
     return Scaffold(
       appBar: AppBar(
         title: const Text('For you'),
@@ -57,13 +59,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               decoration: BoxDecoration(color: Color.fromRGBO(255, 117, 31, 1)),
               child: Align(
                 alignment: Alignment.bottomLeft,
-                child: Text(
-                  'Menu',
-                  style: TextStyle(
-                    fontSize: 26,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Menu',
+                      style: TextStyle(
+                        fontSize: 26,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    
+                  ],
                 ),
               ),
             ),
@@ -119,8 +126,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
 
                   if (confirm == true) {
+                    Navigator.pop(context);
                     final credential = ref.read(credentialRepoProvider);
                     await credential.clearAll();
+
+                    // TAMBAHKAN INI - Invalidate semua provider terkait
+                    ref.invalidate(homeTimelineProvider);
+                    ref.invalidate(credentialProvider);
+
                     if (context.mounted) {
                       context.go(Routes.instance);
                     }
@@ -140,11 +153,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
 
           error: (e, _) {
-            router.go(Routes.instance);
-            return Center(child: Text("Error: $e"));
+            // Return widget untuk ditampilkan sementara
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text("Waiting"),
+                ],
+              ),
+            );
           },
           data: (posts) {
-            print(posts);
+            if (posts.isEmpty) {
+              return const Center(child: Text('No posts available'));
+            }
             return PostCard(posts: posts, scrollCtrl: _scrollController);
           },
         ),

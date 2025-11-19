@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/api/auth_api.dart';
-import 'package:mobileapp/routing/router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/credentials.dart';
-import 'package:mobileapp/state/oauthcode.dart';
+import 'package:mobileapp/state/timeline.dart';
 
 class AuthProcess extends ConsumerStatefulWidget {
   final String? code;
@@ -15,22 +14,24 @@ class AuthProcess extends ConsumerStatefulWidget {
   @override
   ConsumerState<AuthProcess> createState() => _AuthProcessState();
 }
+
 class _AuthProcessState extends ConsumerState<AuthProcess> {
-  String? _errorMessage;
   bool _isProcessing = false;
+  bool _navigationHandled = false; // Tambahkan flag ini
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isProcessing) {
+    // Cukup panggil sekali dengan delay
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && !_isProcessing && !_navigationHandled) {
         processOAuth();
       }
     });
   }
 
   Future<void> processOAuth() async {
-    if (_isProcessing) return;
+    if (_isProcessing || _navigationHandled) return;
 
     setState(() {
       _isProcessing = true;
@@ -38,15 +39,15 @@ class _AuthProcessState extends ConsumerState<AuthProcess> {
 
     try {
       if (!mounted) return;
-
-      final credential = await ref.read(credentialProvider.future);
       final credRepo = ref.read(credentialRepoProvider);
 
-      if (credential.instanceUrl == null || 
-          credential.clientId == null || 
+      final credential = await ref.read(credentialProvider.future);
+
+      if (credential.instanceUrl == null ||
+          credential.clientId == null ||
           credential.clientSecret == null ||
           widget.code == null) {
-        throw Exception('Missing required credentials or code');
+        // throw Exception('Missing required credentials or code');
       }
 
       final token = await getAccessToken(
@@ -61,7 +62,7 @@ class _AuthProcessState extends ConsumerState<AuthProcess> {
       }
 
       debugPrint('Token received: $token');
-      
+
       await credRepo.saveCredentials(
         token,
         credential.instanceUrl!,
@@ -69,31 +70,32 @@ class _AuthProcessState extends ConsumerState<AuthProcess> {
         credential.clientSecret!,
       );
 
-      // KUNCI: Pastikan navigation di frame berikutnya
-      if (mounted) {
-        // Cara 1: Pakai Future.delayed
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (mounted) {
-          context.go(Routes.home);
-        }
-        
-        // ATAU Cara 2: Pakai addPostFrameCallback lagi
-        // WidgetsBinding.instance.addPostFrameCallback((_) {
-        //   if (mounted) {
-        //     context.go(Routes.home);
-        //   }
-        // });
+      // ✅ Invalidate semua provider untuk "fresh start"
+      ref.invalidate(credentialProvider);
+      ref.invalidate(homeTimelineProvider);
+      // Pastikan navigation hanya terjadi sekali
+      if (mounted && !_navigationHandled) {
+        _navigationHandled = true;
+        // Gunakan SchedulerBinding untuk navigate di frame berikutnya
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            context.go(Routes.home);
+          }
+        });
       }
     } catch (e) {
-      debugPrint('OAuth error: $e');
-      
-      // Tetap redirect ke home meskipun error
-      // (karena token mungkin sudah tersimpan)
-      if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (mounted) {
-          context.go(Routes.home);
-        }
+      if (mounted && !_navigationHandled) {
+        _navigationHandled = true;
+
+        // Tampilkan error dulu, baru navigate
+        Future.delayed(const Duration(seconds: 2), () {
+          // ✅ Invalidate semua provider untuk "fresh start"
+          ref.invalidate(credentialProvider);
+          ref.invalidate(homeTimelineProvider);
+          if (mounted) {
+            context.go(Routes.home);
+          }
+        });
       }
     } finally {
       if (mounted) {
@@ -106,13 +108,13 @@ class _AuthProcessState extends ConsumerState<AuthProcess> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
             Text("Processing authentication..."),
           ],
         ),
