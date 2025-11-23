@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
@@ -31,8 +32,192 @@ Future<List<dynamic>> fetchHomeTimeline(
     throw Exception("Failed to load home timeline: ${res.body}");
   }
 
+
   return jsonDecode(res.body);
 }
+
+
+Future<List<dynamic>> fetchStatusesUserById(
+  String baseUrl,
+  String accessToken,
+  String? maxId,
+  String? sinceId,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/accounts/$id/statuses").replace(
+    queryParameters: {
+      'max_id': maxId,
+      'since_id': sinceId
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
+
+
+  return jsonDecode(res.body);
+}
+
+
+Future<List<dynamic>> fetchFavouritedUser(
+  String baseUrl,
+  String accessToken,
+  String? maxId,
+  String? sinceId,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/favourites").replace(
+    queryParameters: {
+      'max_id': maxId,
+      'since_id': sinceId
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
+
+
+  return jsonDecode(res.body);
+}
+
+
+Future<Map<String, dynamic>> favouritePost(
+  String baseUrl,
+  String accessToken,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/statuses/$id/favourite");
+
+  final res = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to favourite post: ${res.body}");
+  }
+  return jsonDecode(res.body);
+}
+
+Future<Map<String, dynamic>> unfavouritePost(
+  String baseUrl,
+  String accessToken,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/statuses/$id/unfavourite");
+
+  final res = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to unfavourite post: ${res.body}");
+  }
+  return jsonDecode(res.body);
+}
+
+Future<Map<String, dynamic>> bookmarkPost(
+  String baseUrl,
+  String accessToken,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/statuses/$id/bookmark");
+
+  final res = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to bookmark post: ${res.body}");
+  }
+  return jsonDecode(res.body);
+}
+
+Future<Map<String, dynamic>> unbookmarkPost(
+  String baseUrl,
+  String accessToken,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/statuses/$id/unbookmark");
+
+  final res = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to unbookmark post: ${res.body}");
+  }
+
+  return jsonDecode(res.body);
+}
+
+
+
+Future<List<dynamic>> fetchBookmarkedUser(
+  String baseUrl,
+  String accessToken,
+  String? maxId,
+  String? sinceId,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/bookmarks").replace(
+    queryParameters: {
+      'max_id': maxId,
+      'since_id': sinceId
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
+
+
+  return jsonDecode(res.body);
+}
+
 
 Future<void> createFediversePost({
   required String content,

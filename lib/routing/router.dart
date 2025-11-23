@@ -3,14 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/ui/addpost/widgets/addpost_screen.dart';
 import 'package:mobileapp/ui/home/widgets/home_screen.dart';
-import 'package:mobileapp/ui/instance/widgets/AuthProcess.dart';
 import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
 import 'package:mobileapp/ui/profile/widgets/profile_screen.dart';
 import 'package:mobileapp/ui/instance/widgets/ChoosingInstance.dart';
 import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
-
+import 'package:mobileapp/ui/viewpost/viewpost_screen.dart';
 
 final router = GoRouter(
   initialLocation: Routes.splash,
@@ -27,13 +26,6 @@ final router = GoRouter(
 
         final instanceData = extra["instanceData"] as Map<String, dynamic>;
         return InstanceAuthPage(instanceData: instanceData);
-      },
-    ),
-    GoRoute(
-      path: Routes.authProcess,
-      builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>;
-        return AuthProcess(code: extra["code"]);
       },
     ),
 
@@ -100,6 +92,17 @@ final router = GoRouter(
           path: Routes.home,
           builder: (context, state) => const HomeScreen(),
         ),
+          GoRoute(
+          path: Routes.viewPost,
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>;
+
+        final post = extra["post"] as Map<String, dynamic>;
+        final account = extra["account"] as Map<String, dynamic>;
+        final timeAgo = extra["timeAgo"] as String;
+        return ViewpostScreen(post: post,account: account,timeAgo: timeAgo);
+          },
+        ),
         GoRoute(
           path: Routes.search,
           builder: (context, state) => const SearchScreen(),
@@ -111,8 +114,6 @@ final router = GoRouter(
         GoRoute(
           path: Routes.profile,
           builder: (context, state) {
-           
-
             return ProfileScreen(id: null);
           },
         ),

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'package:http/http.dart' as http;
 
 Future<String?> getAccessToken({
@@ -12,22 +11,23 @@ Future<String?> getAccessToken({
 }) async {
   final url = Uri.parse(instanceBaseUrl).resolve("/oauth/token");
 
-  String redirectUri = dotenv.get("REDIRECT_URI");
+  String redirectUri = "whypostapp://callback";
 
   final response = await http.post(
     url,
-    body: {
-      'client_id': clientId,
-      'client_secret': clientSecret,
-      'grant_type': 'authorization_code',
-      'redirect_uri': redirectUri,
-      'code': code,
-    },
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+    'client_id': clientId,
+    'client_secret': clientSecret,
+    'grant_type': 'authorization_code',
+    'redirect_uri': redirectUri,
+    'code': code,
+  }),
   );
 
+print("Raw Body = ${response.body}");
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
-    debugPrint(data);
     return data['access_token'];
   } else {
     print("Gagal exchange token: ${response.body}");

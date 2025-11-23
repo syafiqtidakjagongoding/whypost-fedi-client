@@ -1,13 +1,12 @@
 import 'dart:async';
 
+// ignore: depend_on_referenced_packages
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobileapp/api/auth_api.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/credentials.dart';
-import 'package:mobileapp/state/oauthcode.dart';
+import 'package:mobileapp/state/timeline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'routing/router.dart';
 import 'package:app_links/app_links.dart';
@@ -30,45 +29,60 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   StreamSubscription? _sub;
-  bool _handled = false;
   Timer? _resetTimer;
+  static const _keyToken = "access_token";
+  static const _instanceurl = "instance_url";
+  static const _clientId = "client_id";
+  static const _clientSecret = "client_secret";
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      initDeepLinks();
-    });
+    initDeepLinks();
   }
 
   Future<void> initDeepLinks() async {
-    _sub = AppLinks().uriLinkStream.listen((uri) {
+    _sub = AppLinks().uriLinkStream.listen((uri) async {
       debugPrint("Deep Link Triggered: $uri");
-
-      if (_handled) {
-        debugPrint("Deep link already handled, ignoring");
-        return;
-      }
 
       final code = uri.queryParameters['code'];
       if (code != null) {
-        _handled = true;
-
-        // Cancel timer lama jika ada
-        _resetTimer?.cancel();
 
         // Navigate dengan delay
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            debugPrint("Navigating to auth process with code: $code");
-            router.go(Routes.authProcess, extra: {"code": code});
-          }
-        });
+        if (mounted) {
+          final prefs = await SharedPreferences.getInstance();
 
-        // Reset flag setelah 5 detik
-        _resetTimer = Timer(const Duration(seconds: 5), () {
-          _handled = false;
-        });
+          final instanceUrl = prefs.getString(_instanceurl);
+          final clientId = prefs.getString(_clientId);
+          final clientSecret = prefs.getString(_clientSecret);
+
+          // Cek mandatory values
+          if (instanceUrl == null || clientId == null || clientSecret == null) {
+            debugPrint("❌ Data OAuth tidak lengkap");
+            return;
+          }
+
+          // Ambil access token
+          final accToken = await getAccessToken(
+            instanceBaseUrl: instanceUrl,
+            clientId: clientId,
+            clientSecret: clientSecret,
+            code: code,
+          );
+
+          if (accToken == null || accToken.trim().isEmpty) {
+            debugPrint("❌ Gagal mendapatkan token. Body kosong.");
+            return;
+          }
+
+          // SIMPAN hanya jika token valid
+          await prefs.setString(_keyToken, accToken);
+          ref.invalidate(homeTimelineProvider);
+          debugPrint("✅ Token berhasil disimpan: $accToken");
+          router.go(Routes.home);
+        }
+      } else {
+        router.go(Routes.instance);
       }
     });
   }

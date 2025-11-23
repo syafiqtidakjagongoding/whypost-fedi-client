@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -33,6 +33,8 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
     return null;
   }
 
+  
+
   Future<void> _checkInstance() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -44,10 +46,14 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
     final instance = _controller.text.trim();
 
     try {
-      final redirectUri = dotenv.env['REDIRECT_URI']!;
+      final redirectUri = "whypostapp://callback";
       // Coba ambil info instance dari /api/v1/instance (Mastodon-compatible)
       final uri = Uri.parse('$instance/api/v1/instance');
-      final response = await http.get(uri);
+       final response = await http
+          .get(uri)
+          .timeout(const Duration(seconds: 7), onTimeout: () {
+        throw TimeoutException("Instance take too longer to respond");
+      });
       dynamic jsonData;
       if (response.statusCode == 200) {
         // Parse JSON body
@@ -61,7 +67,7 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
 
         // pastikan field utama ada dan tidak null
         if (data['uri'] == null || data['registrations'] == null) {
-          throw Exception("Instance isn't fediverse");
+          throw Exception("Instance isn't fediverse or mastodon compatible");
         }
       } else {
         throw Exception("Failed to checking instance");
@@ -81,14 +87,18 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
 
       // Setelah sukses, bisa pop ke halaman sebelumnya dengan membawa nilai
       context.push(Routes.instanceAuthPage, extra: {"instanceData": jsonData});
+    } on TimeoutException catch (_) {
+      setState(() {
+        _message = "Request timed out. The server is too slow.";
+      });
     } catch (e) {
       setState(() {
-        _message = "Failed to checking instance $e";
+        _message = "Failed to check instance: $e";
       });
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

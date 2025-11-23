@@ -28,8 +28,7 @@ class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
     try {
       final instance = ref.watch(instanceProvider);
       final instanceData = instance!.instanceData;
-      final credential = ref.read(credentialRepoProvider);
-
+      
       final baseUri = instanceData['uri'];
       if (baseUri == null) {
         throw Exception("Instance base URL is missing");
@@ -67,12 +66,12 @@ class _InstanceAuthPage extends ConsumerState<InstanceAuthPage> {
           'scope': 'read write follow push',
         },
       );
-     await credential.saveCredentials("", baseUri, clientId, clientSecret);
-
+      await CredentialsRepository.saveCredentials(null, baseUri, clientId, clientSecret);
+  
       await launchUrl(authUrl, mode: LaunchMode.externalApplication);
 
     
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint("OAuth Error: $e\n");
       rethrow; // biar bisa ditangkap UI
     }

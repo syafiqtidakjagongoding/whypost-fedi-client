@@ -49,23 +49,23 @@ class _AddPostWidgetState extends ConsumerState<AddPostWidget> {
     // 🔹 Convert XFile → File
     final List<File> files = _images.map((x) => File(x.path)).toList();
 
-    final credential = await ref.read(credentialProvider.future);
+    // final credential = await ref.read(credentialProvider.future);
 
-    if (credential.instanceUrl == null || credential.accToken == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Anda belum login!')));
-      return;
-    }
+    // if (credential.instanceUrl == null || credential.accToken == null) {
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(const SnackBar(content: Text('Anda belum login!')));
+    //   return;
+    // }
 
     try {
-      // 🔥 Kirim ke Fediverse
-      await createFediversePost(
-        content: content,
-        instanceUrl: credential.instanceUrl!,
-        accessToken: credential.accToken!,
-        images: files,
-      );
+      // // 🔥 Kirim ke Fediverse
+      // await createFediversePost(
+      //   content: content,
+      //   instanceUrl: credential.instanceUrl!,
+      //   accessToken: credential.accToken!,
+      //   images: files,
+      // );
 
       // 🔥 Hapus input setelah sukses
       setState(() {

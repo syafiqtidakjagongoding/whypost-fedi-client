@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/post_api.dart';
 import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/state/globalpost.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
   String? maxId;
@@ -9,75 +11,63 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
 
   @override
   Future<List<dynamic>> build() async {
+    maxId = null; // reset
+    lastSinceId = null; // reset
+    hasMore = true; // reset
+    final cred = await CredentialsRepository.loadCredentials();
+
+    if (cred.accToken == null || cred.instanceUrl == null) {
+      return [];
+    }
+
     return await _loadInitial();
   }
 
   Future<List<dynamic>> _loadInitial() async {
-    final credential = await ref.watch(credentialProvider.future);
+    final cred = await CredentialsRepository.loadCredentials();
+    if (cred.accToken == null || cred.instanceUrl == null) {
+      return []; // atau state = AsyncData([]) → aman
+    }
 
     final posts = await fetchHomeTimeline(
-      credential.instanceUrl!,
-      credential.accToken!,
+      cred.instanceUrl!,
+      cred.accToken!,
       30,
-     null,
-      null
+      null,
+      null,
     );
 
     if (posts.isNotEmpty) {
       maxId = posts.last['id']; // cursor for pagination
       lastSinceId = posts.first['id'];
     }
-
+    ref.read(postStateProvider.notifier).mergePosts(posts);
     return posts;
   }
- Future<void> loadMore() async {
 
+  Future<void> loadMore() async {
     try {
-      final credential = await ref.watch(credentialProvider.future);
+      final cred = await CredentialsRepository.loadCredentials();
 
       final morePosts = await fetchHomeTimeline(
-        credential.instanceUrl!,
-        credential.accToken!,
+        cred.instanceUrl!,
+        cred.accToken!,
         30,
         maxId,
-        null
+        null,
       );
 
       if (morePosts.isNotEmpty) {
         maxId = morePosts.last['id'];
 
-        state = AsyncData([
-          ...state.value!,
-          ...morePosts,
-        ]);
+        state = AsyncData([...state.value!, ...morePosts]);
       }
+      ref.read(postStateProvider.notifier).mergePosts(morePosts);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
   }
 
-  Future<void> refresh() async {
-    try {
-      final credential = await ref.watch(credentialProvider.future);
-
-      final newPosts = await fetchHomeTimeline(
-        credential.instanceUrl!,
-        credential.accToken!,
-        30,
-        null,
-        null, // Only newer posts
-      );
-
-      if (newPosts.isNotEmpty) {
-        lastSinceId = newPosts.first['id'];
-
-        // prepend posts terbaru
-        state = AsyncData(newPosts);
-      }
-    } catch (e, st) {
-      state = AsyncError(e, st);
-    }
-  }
 }
 
 final homeTimelineProvider =

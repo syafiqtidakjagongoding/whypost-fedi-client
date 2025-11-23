@@ -18,15 +18,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     _initGuest();
   }
 
-  void _initGuest() async {
-    final credential = await ref.read(credentialProvider.future);
-    if (credential.accToken != null && credential.instanceUrl != null) {
-      // ignore: use_build_context_synchronously
-      context.go(Routes.home);
-    } else {
-      // ignore: use_build_context_synchronously
-      context.go(Routes.instance); // navigasi ke HomeScreen
-    }
+  bool _navigated = false;
+
+  void _navigateOnce(String route) {
+    if (_navigated) return;
+    _navigated = true;
+    context.go(route);
+  }
+
+  void _initGuest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final cred = await CredentialsRepository.loadCredentials();
+  
+
+      if (!mounted) return; // <- sangat penting
+
+      if (cred.accToken != null && cred.accToken!.isNotEmpty) {
+        debugPrint("Token: ${cred.accToken.toString()}");
+        _navigateOnce(Routes.home);
+      } else {
+        _navigateOnce(Routes.instance);
+      }
+    });
   }
 
   @override

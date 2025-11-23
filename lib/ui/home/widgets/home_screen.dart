@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/router.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/post.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:mobileapp/state/credentials.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'package:mobileapp/ui/utils/FediverseImage.dart';
 import 'package:mobileapp/ui/utils/InstanceLink.dart';
 import 'package:mobileapp/ui/widgets/post_card.dart';
@@ -27,6 +29,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     _scrollController.addListener(() {
       final notifier = ref.read(homeTimelineProvider.notifier);
 
@@ -40,7 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(homeTimelineProvider);
-  
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('For you'),
@@ -69,7 +72,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    
                   ],
                 ),
               ),
@@ -127,12 +129,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   if (confirm == true) {
                     Navigator.pop(context);
-                    final credential = ref.read(credentialRepoProvider);
-                    await credential.clearAll();
-
                     // TAMBAHKAN INI - Invalidate semua provider terkait
+                    await CredentialsRepository.clearAll();
                     ref.invalidate(homeTimelineProvider);
-                    ref.invalidate(credentialProvider);
 
                     if (context.mounted) {
                       context.go(Routes.instance);
@@ -147,7 +146,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref.read(homeTimelineProvider.notifier).refresh();
+          ref.invalidate(homeTimelineProvider);
+          ref.invalidate(favouritedTimelineProvider);
+          ref.invalidate(bookmarkedTimelineProvider);
         },
         child: timeline.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -160,7 +161,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
-                  Text("Waiting"),
+                  Text("Error $e"),
                 ],
               ),
             );
@@ -169,7 +170,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (posts.isEmpty) {
               return const Center(child: Text('No posts available'));
             }
-            return PostCard(posts: posts, scrollCtrl: _scrollController);
+            return ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: posts.length,
+              itemBuilder: (context, i) {
+                final post = posts[i];
+                final account = post['account'];
+                final createdAt = post['created_at'];
+                final timeAgo = createdAt != null
+                    ? timeago.format(DateTime.parse(createdAt))
+                    : '';
+                return PostCard(post: post, account: account, timeAgo: timeAgo);
+              },
+            );
           },
         ),
       ),
