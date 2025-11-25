@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/legacy.dart';
 
 final postStateProvider =
     StateNotifierProvider<PostStateNotifier, Map<String, dynamic>>(
-  (ref) => PostStateNotifier(),
-);
+      (ref) => PostStateNotifier(),
+    );
 
 class PostStateNotifier extends StateNotifier<Map<String, dynamic>> {
   PostStateNotifier() : super({});
@@ -20,10 +20,12 @@ class PostStateNotifier extends StateNotifier<Map<String, dynamic>> {
 
   void patch(String id, Map<String, dynamic> updates) {
     if (!state.containsKey(id)) return;
-    final old = state[id];
     state = {
       ...state,
-      id: { ...old, ...updates }
+      id: {
+        ...Map<String, dynamic>.from(state[id]!), // pastikan copy
+        ...updates,
+      },
     };
   }
 }

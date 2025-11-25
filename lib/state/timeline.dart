@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:mobileapp/api/post_api.dart';
 import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/state/globalpost.dart';
@@ -67,10 +69,186 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
       state = AsyncError(e, st);
     }
   }
-
 }
 
 final homeTimelineProvider =
     AsyncNotifierProvider<HomeTimelineNotifier, List<dynamic>>(
       () => HomeTimelineNotifier(),
     );
+
+final statusesTimelineProvider = FutureProvider.family<List<dynamic>, String>((
+  ref,
+  userId,
+) async {
+  final cred = await CredentialsRepository.loadCredentials();
+
+  // Cek kredensial
+  if (cred.accToken == null || cred.instanceUrl == null) {
+    return [];
+  }
+
+  // Fetch posts user
+  final posts = await fetchStatusesUserById(
+    cred.instanceUrl!,
+    cred.accToken!,
+    null, // max_id
+    null, // since_id
+    userId,
+  );
+  ref.read(postStateProvider.notifier).mergePosts(posts);
+
+  return posts;
+});
+
+final statusesOnlyMediaTimelineProvider =
+    FutureProvider.family<List<dynamic>, String>((ref, userId) async {
+      final cred = await CredentialsRepository.loadCredentials();
+
+      // Cek kredensial
+      if (cred.accToken == null || cred.instanceUrl == null) {
+        return [];
+      }
+
+      // Fetch posts user
+      final posts = await fetchStatusesUserByIdOnlyMedia(
+        cred.instanceUrl!,
+        cred.accToken!,
+        null, // max_id
+        null, // since_id
+        userId,
+      );
+      ref.read(postStateProvider.notifier).mergePosts(posts);
+      return posts;
+    });
+
+final favouritedTimelineProvider = FutureProvider<List<dynamic>>((ref) async {
+  final cred = await CredentialsRepository.loadCredentials();
+
+  // Cek kredensial
+  if (cred.accToken == null || cred.instanceUrl == null) {
+    return [];
+  }
+
+  // Fetch posts user
+  final posts = await fetchFavouritedUser(
+    cred.instanceUrl!,
+    cred.accToken!,
+    null, // max_id
+    null, // since_id
+  );
+  ref.read(postStateProvider.notifier).mergePosts(posts);
+  return posts;
+});
+
+final bookmarkedTimelineProvider = FutureProvider<List<dynamic>>((ref) async {
+  final cred = await CredentialsRepository.loadCredentials();
+
+  // Cek kredensial
+  if (cred.accToken == null || cred.instanceUrl == null) {
+    return [];
+  }
+
+  // Fetch posts user
+  final posts = await fetchBookmarkedUser(
+    cred.instanceUrl!,
+    cred.accToken!,
+    null, // max_id
+    null, // since_id
+  );
+  // Masukkan ke postState agar lengkap
+  ref.read(postStateProvider.notifier).mergePosts(posts);
+  return posts;
+});
+
+class TagTimelineState {
+  final List<dynamic> posts;
+  final bool isLoading;
+  final bool hasMore;
+  final String? maxId;
+
+  TagTimelineState({
+    this.posts = const [],
+    this.isLoading = false,
+    this.hasMore = true,
+    this.maxId,
+  });
+
+  TagTimelineState copyWith({
+    List<dynamic>? posts,
+    bool? isLoading,
+    bool? hasMore,
+    String? maxId,
+  }) {
+    return TagTimelineState(
+      posts: posts ?? this.posts,
+      isLoading: isLoading ?? this.isLoading,
+      hasMore: hasMore ?? this.hasMore,
+      maxId: maxId ?? this.maxId,
+    );
+  }
+}
+
+final tagTimelineProvider =
+    StateNotifierProvider.family<TagTimelineNotifier, TagTimelineState, String>(
+      (ref, tag) {
+        return TagTimelineNotifier(ref, tag);
+      },
+    );
+
+class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
+  final Ref ref;
+  final String tag;
+
+  TagTimelineNotifier(this.ref, this.tag) : super(TagTimelineState()) {
+    loadInitial();
+  }
+
+  Future<void> loadInitial() async {
+    final cred = await CredentialsRepository.loadCredentials();
+    if (cred.accToken == null || cred.instanceUrl == null) return;
+
+    state = state.copyWith(isLoading: true);
+
+    final posts = await fetchTagTimeline(
+      cred.instanceUrl!,
+      cred.accToken!,
+      tag,
+      30,
+      null,
+      null,
+    );
+
+    state = state.copyWith(
+      posts: posts,
+      isLoading: false,
+      hasMore: posts.isNotEmpty,
+      maxId: posts.isNotEmpty ? posts.last['id'] : null,
+    );
+    ref.read(postStateProvider.notifier).mergePosts(state.posts);
+  }
+
+  Future<void> loadMore() async {
+    if (!state.hasMore || state.isLoading) return;
+
+    final cred = await CredentialsRepository.loadCredentials();
+
+    state = state.copyWith(isLoading: true);
+
+    final more = await fetchTagTimeline(
+      cred.instanceUrl!,
+      cred.accToken!,
+      tag,
+      30,
+      state.maxId,
+      null,
+    );
+
+    state = state.copyWith(
+      posts: [...state.posts, ...more],
+      isLoading: false,
+      hasMore: more.isNotEmpty,
+      maxId: more.isNotEmpty ? more.last['id'] : state.maxId,
+    );
+    ref.read(postStateProvider.notifier).mergePosts(state.posts);
+  }
+}

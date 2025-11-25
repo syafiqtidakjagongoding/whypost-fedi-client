@@ -1,8 +1,0 @@
-{
-	"name": "presign-worker",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-10-08",
-	"observability": {
-		"enabled": true,
-	},
-}

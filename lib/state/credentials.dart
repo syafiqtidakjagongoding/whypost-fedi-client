@@ -90,10 +90,8 @@ class CredentialsRepository {
       }),
     );
 
-    await prefs.remove(_keyToken);
-    await prefs.remove(_instanceurl);
-    await prefs.remove(_clientId);
-    await prefs.remove(_clientSecret);
+   
     await prefs.clear();
+    await prefs.reload();
   }
 }

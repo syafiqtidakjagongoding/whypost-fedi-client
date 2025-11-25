@@ -9,6 +9,7 @@ import 'package:mobileapp/ui/instance/widgets/ChoosingInstance.dart';
 import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
+import 'package:mobileapp/ui/tags/TagPostsScreen.dart';
 import 'package:mobileapp/ui/viewpost/viewpost_screen.dart';
 
 final router = GoRouter(
@@ -19,6 +20,7 @@ final router = GoRouter(
       path: Routes.instance,
       builder: (context, state) => const ChooseInstancePage(),
     ),
+
     GoRoute(
       path: Routes.instanceAuthPage,
       builder: (context, state) {
@@ -92,15 +94,19 @@ final router = GoRouter(
           path: Routes.home,
           builder: (context, state) => const HomeScreen(),
         ),
-          GoRoute(
+        GoRoute(
           path: Routes.viewPost,
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>;
 
-        final post = extra["post"] as Map<String, dynamic>;
-        final account = extra["account"] as Map<String, dynamic>;
-        final timeAgo = extra["timeAgo"] as String;
-        return ViewpostScreen(post: post,account: account,timeAgo: timeAgo);
+            final post = extra["post"] as Map<String, dynamic>;
+            final account = extra["account"] as Map<String, dynamic>;
+            final timeAgo = extra["timeAgo"] as String;
+            return ViewpostScreen(
+              post: post,
+              account: account,
+              timeAgo: timeAgo,
+            );
           },
         ),
         GoRoute(
@@ -114,12 +120,21 @@ final router = GoRouter(
         GoRoute(
           path: Routes.profile,
           builder: (context, state) {
-            return ProfileScreen(id: null);
+             final id = state.extra as String?;
+
+            return ProfileScreen(id: id);
           },
         ),
         GoRoute(
           path: Routes.addPost,
           builder: (context, state) => const AddPostWidget(),
+        ),
+        GoRoute(
+          path: Routes.tagPosts,
+          builder: (context, state) {
+            final name = state.pathParameters['name']!;
+            return TagpostsScreen(tag: name);
+          },
         ),
       ],
     ),

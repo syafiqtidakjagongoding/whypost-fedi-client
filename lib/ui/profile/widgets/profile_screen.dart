@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/ui/widgets/post_card.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:mobileapp/state/post.dart';
 import 'package:mobileapp/state/user.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,16 +19,22 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen>
-    with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    loadCred();
+  }
+
+  Future<void> loadCred() async {
+    setState(() {}); // supaya build dipanggil ulang
   }
 
   @override
   Widget build(BuildContext context) {
-    final userAsync = ref.watch(currentUserProvider);
+    final userAsync = widget.id == null
+        ? ref.watch(currentUserProvider)
+        : ref.watch(selectedUserProvider(widget.id!));
 
     return Scaffold(
       body: userAsync.when(
@@ -34,11 +42,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         error: (e, _) => Center(child: Text("Error: $e")),
         data: (user) {
           final userId = user!['id'];
-
           // Watch timeline AFTER user successfully loaded
           final statusesAsync = ref.watch(statusesTimelineProvider(userId));
-          final favouritedAsync = ref.watch(favouritedTimelineProvider);
-          final bookmarkedAsync = ref.watch(bookmarkedTimelineProvider);
+          final favouritedAsync = widget.id == null
+              ? ref.watch(favouritedTimelineProvider)
+              : AsyncValue.data([]);
+          final bookmarkedAsync = widget.id == null
+              ? ref.watch(bookmarkedTimelineProvider)
+              : AsyncValue.data([]);
+          final statusesOnlyMediaAsync = ref.watch(
+            statusesOnlyMediaTimelineProvider(userId),
+          );
           return DefaultTabController(
             length: 3,
             child: RefreshIndicator(
@@ -66,21 +80,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                   child: Image.network(
                                     user['header'],
                                     fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) {
+                                      return Container(color: Colors.grey[900]);
+                                    },
                                   ),
                                 ),
 
+                                // FULL BLACK GRADIENT OVERLAY
                                 Container(
                                   height: 200,
-                                  width: double.infinity,
-                                  color: Colors.black.withOpacity(0.25),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.black.withOpacity(1),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-
+                                if (widget.id != null)
+                                  Positioned(
+                                    top: 16,
+                                    left: 16,
+                                    child: Container(
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.arrow_back,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed: () => context.pop(),
+                                      ),
+                                    ),
+                                  ),
                                 Positioned(
                                   bottom: 10,
                                   left: 16,
                                   right: 16,
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Container(
                                         decoration: BoxDecoration(
@@ -106,7 +146,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
-                                              user['username'],
+                                              user['display_name'] == ""
+                                                  ? user['username']
+                                                  : user['display_name'],
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 20,
@@ -139,14 +181,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                                           TextOverflow.ellipsis,
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 4),
-                                                  const Icon(
-                                                    Icons.open_in_new,
-                                                    color: Colors.white,
-                                                    size: 14,
-                                                  ),
                                                 ],
                                               ),
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  "Followers ${user['followers_count']}",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  "Followings ${user['following_count']}",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -158,15 +214,128 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             ),
                           ),
 
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withOpacity(1),
+                                  Colors.black.withOpacity(0.9),
+                                ],
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Html(
+                                  data: user['note'],
+                                  onLinkTap: (url, attributes, element) {
+                                    final uri = Uri.parse(
+                                      url!.startsWith('http')
+                                          ? url
+                                          : 'https://$url',
+                                    );
+                                    launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                  },
+                                  style: {
+                                    "body": Style(
+                                      color: Colors.white,
+                                      fontSize: FontSize(15),
+                                      margin: Margins.zero,
+                                      padding: HtmlPaddings.zero,
+                                      lineHeight: LineHeight(1.5),
+                                    ),
+                                    "p": Style(
+                                      margin: Margins.only(bottom: 8),
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    "b": Style(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    "i": Style(fontStyle: FontStyle.italic),
+                                    "span": Style(
+                                      fontSize: FontSize(15),
+                                      color: Colors.white,
+                                    ),
+                                    "a": Style(
+                                      color: Color.fromRGBO(255, 117, 31, 1),
+                                      textDecoration: TextDecoration.none,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  },
+                                ),
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    final isFollowing =
+                                        user['following'] as bool;
+
+                                    final credential =
+                                        await CredentialsRepository.loadCredentials();
+                                    if (credential.accToken == null ||
+                                        credential.instanceUrl == null) {
+                                      context.go(Routes.instance);
+                                      return;
+                                    }
+                                    if (isFollowing) {
+                                      // Unfollow API call
+                                      await unfollowUser(
+                                        instanceUrl: credential.instanceUrl!,
+                                        token: credential.accToken!,
+                                        userId: user['id'],
+                                      );
+                                    } else {
+                                      // Follow API call
+                                      await followUser(
+                                        instanceUrl: credential.instanceUrl!,
+                                        token: credential.accToken!,
+                                        userId: user['id'],
+                                      );
+                                    }
+
+                                    // Update local state / provider agar button rebuild
+                                    setState(() {
+                                      user['following'] = !isFollowing;
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: user['following'] == true
+                                        ? Colors.grey
+                                        : Colors.blue,
+                                  ),
+                                  child: Text(
+                                    user['following'] == true
+                                        ? "Following"
+                                        : "Follow",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                           // ===== TAB BAR =====
                           TabBar(
                             indicatorColor: Colors.black,
                             labelColor: Colors.black,
                             unselectedLabelColor: Colors.grey,
-                            tabs: const [
-                              Tab(text: "Your posts"),
-                              Tab(text: "Likes"),
-                              Tab(text: "Saved post"),
+                            tabs: [
+                              Tab(
+                                text: widget.id == null
+                                    ? "Your posts"
+                                    : "Posts",
+                              ),
+                              Tab(text: widget.id == null ? "Likes" : "Media"),
+                              Tab(
+                                text: widget.id == null
+                                    ? "Saved post"
+                                    : "About",
+                              ),
                             ],
                           ),
                         ],
@@ -193,15 +362,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           itemCount: posts.length,
                           itemBuilder: (context, i) {
                             final post = posts[i];
-                            final account = post['account'];
-                            final createdAt = post['created_at'];
+
+                            // Check apakah post ini reblog
+                            final isReblog = post['reblog'] != null;
+
+                            // Jika reblog, ambil konten post asli
+                            final displayPost = isReblog
+                                ? post['reblog'] as Map<String, dynamic>
+                                : post;
+
+                            // Akun yang menampilkan post ini
+                            final displayAccount = isReblog
+                                ? post['reblog']['account']
+                                : post['account'];
+
+                            final createdAt = displayPost['created_at'];
                             final timeAgo = createdAt != null
                                 ? timeago.format(DateTime.parse(createdAt))
                                 : '';
+
                             return PostCard(
-                              post: post,
-                              account: account,
+                              post: displayPost, // konten asli jika reblog
+                              account:
+                                  displayAccount, // user yang me-reblog / posting asli
                               timeAgo: timeAgo,
+                              isReblog: isReblog, // optional flag
+                              rebloggedBy: isReblog
+                                  ? post['account']
+                                  : null, // user yang me-reblog
                             );
                           },
                         );
@@ -209,68 +397,170 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     ),
 
                     // ==== TAB 2: FAVOURITES ====
-                    favouritedAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(child: Text("Error: $e")),
-                      data: (posts) {
-                        if (posts.isEmpty) {
-                          return const Center(
-                            child: Text("No liked posts yet"),
-                          );
-                        }
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: posts.length,
-                          itemBuilder: (context, i) {
-                            final post = posts[i];
-                            final account = post['account'];
-                            final createdAt = post['created_at'];
-                            final timeAgo = createdAt != null
-                                ? timeago.format(DateTime.parse(createdAt))
-                                : '';
-                            return PostCard(
-                              post: post,
-                              account: account,
-                              timeAgo: timeAgo,
+                    if (widget.id == null)
+                      favouritedAsync.when(
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text("Error: $e")),
+                        data: (posts) {
+                          if (posts.isEmpty) {
+                            return const Center(
+                              child: Text("No liked posts yet"),
                             );
-                          },
-                        );
-                      },
-                    ),
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: posts.length,
+                            itemBuilder: (context, i) {
+                              final post = posts[i];
+
+                              // Check apakah post ini reblog
+                              final isReblog = post['reblog'] != null;
+
+                              // Jika reblog, ambil konten post asli
+                              final displayPost = isReblog
+                                  ? post['reblog'] as Map<String, dynamic>
+                                  : post;
+
+                              // Akun yang menampilkan post ini
+                              final displayAccount = isReblog
+                                  ? post['reblog']['account']
+                                  : post['account'];
+
+                              final createdAt = displayPost['created_at'];
+                              final timeAgo = createdAt != null
+                                  ? timeago.format(DateTime.parse(createdAt))
+                                  : '';
+
+                              return PostCard(
+                                post: displayPost, // konten asli jika reblog
+                                account:
+                                    displayAccount, // user yang me-reblog / posting asli
+                                timeAgo: timeAgo,
+                                isReblog: isReblog, // optional flag
+                                rebloggedBy: isReblog
+                                    ? post['account']
+                                    : null, // user yang me-reblog
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                    if (widget.id != null)
+                      statusesOnlyMediaAsync.when(
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text("Error: $e")),
+                        data: (posts) {
+                          if (posts.isEmpty) {
+                            return const Center(child: Text("No posts yet"));
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: posts.length,
+                            itemBuilder: (context, i) {
+                              final post = posts[i];
+
+                              // Check apakah post ini reblog
+                              final isReblog = post['reblog'] != null;
+
+                              // Jika reblog, ambil konten post asli
+                              final displayPost = isReblog
+                                  ? post['reblog'] as Map<String, dynamic>
+                                  : post;
+
+                              // Akun yang menampilkan post ini
+                              final displayAccount = isReblog
+                                  ? post['reblog']['account']
+                                  : post['account'];
+
+                              final createdAt = displayPost['created_at'];
+                              final timeAgo = createdAt != null
+                                  ? timeago.format(DateTime.parse(createdAt))
+                                  : '';
+
+                              return PostCard(
+                                post: displayPost, // konten asli jika reblog
+                                account:
+                                    displayAccount, // user yang me-reblog / posting asli
+                                timeAgo: timeAgo,
+                                isReblog: isReblog, // optional flag
+                                rebloggedBy: isReblog
+                                    ? post['account']
+                                    : null, // user yang me-reblog
+                              );
+                            },
+                          );
+                        },
+                      ),
 
                     // ==== TAB 3: BOOKMARKS ====
-                    bookmarkedAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(child: Text("Error: $e")),
-                      data: (posts) {
-                        if (posts.isEmpty) {
-                          return const Center(
-                            child: Text("No bookmarked posts yet"),
-                          );
-                        }
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: posts.length,
-                          itemBuilder: (context, i) {
-                            final post = posts[i];
-                            final account = post['account'];
-                            final createdAt = post['created_at'];
-                            final timeAgo = createdAt != null
-                                ? timeago.format(DateTime.parse(createdAt))
-                                : '';
-                            return PostCard(
-                              post: post,
-                              account: account,
-                              timeAgo: timeAgo,
+                    if (widget.id == null)
+                      bookmarkedAsync.when(
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text("Error: $e")),
+                        data: (posts) {
+                          if (posts.isEmpty) {
+                            return const Center(
+                              child: Text("No bookmarked posts yet"),
                             );
-                          },
-                        );
-                      },
-                    ),
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: posts.length,
+                            itemBuilder: (context, i) {
+                              final post = posts[i];
+
+                              // Check apakah post ini reblog
+                              final isReblog = post['reblog'] != null;
+
+                              // Jika reblog, ambil konten post asli
+                              final displayPost = isReblog
+                                  ? post['reblog'] as Map<String, dynamic>
+                                  : post;
+
+                              // Akun yang menampilkan post ini
+                              final displayAccount = isReblog
+                                  ? post['account']
+                                  : post['account'];
+
+                              final createdAt = displayPost['created_at'];
+                              final timeAgo = createdAt != null
+                                  ? timeago.format(DateTime.parse(createdAt))
+                                  : '';
+
+                              return PostCard(
+                                post: displayPost, // konten asli jika reblog
+                                account:
+                                    displayAccount, // user yang me-reblog / posting asli
+                                timeAgo: timeAgo,
+                                isReblog: isReblog, // optional flag
+                                rebloggedBy: isReblog
+                                    ? post['account']
+                                    : null, // user yang me-reblog
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                    if (widget.id != null)
+                      userAsync.when(
+                        data: (user) {
+                          if (user!.isEmpty) {
+                            return Text("User error");
+                          }
+                          return Text(user['acct']);
+                        },
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text("Error: $e")),
+                      ),
                   ],
                 ),
               ),

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/auth_api.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/app.dart';
+import 'package:mobileapp/state/post.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'routing/router.dart';
@@ -47,7 +49,6 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       final code = uri.queryParameters['code'];
       if (code != null) {
-
         // Navigate dengan delay
         if (mounted) {
           final prefs = await SharedPreferences.getInstance();
@@ -78,6 +79,7 @@ class _MyAppState extends ConsumerState<MyApp> {
           // SIMPAN hanya jika token valid
           await prefs.setString(_keyToken, accToken);
           ref.invalidate(homeTimelineProvider);
+       
           debugPrint("✅ Token berhasil disimpan: $accToken");
           router.go(Routes.home);
         }
@@ -97,6 +99,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   // ... rest of code
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp.router(
       title: "WhyPost App",
       routerConfig: router,

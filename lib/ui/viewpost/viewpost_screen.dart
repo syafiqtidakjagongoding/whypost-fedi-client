@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobileapp/api/user_api.dart';
+import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/action.dart';
 import 'package:mobileapp/state/globalpost.dart';
 import 'package:mobileapp/state/post.dart';
@@ -31,7 +33,6 @@ class ViewpostScreen extends ConsumerStatefulWidget {
 }
 
 class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
-
   List<Widget> buildPostMenu(bool isUserPost) {
     final menu = <Widget>[];
 
@@ -66,12 +67,11 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
   @override
   void initState() {
     super.initState();
-  
   }
 
   @override
   Widget build(BuildContext context) {
-   final globalPatch = ref.watch(
+    final globalPatch = ref.watch(
       postStateProvider.select((m) => m[widget.post['id']]),
     );
 
@@ -81,9 +81,20 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
     };
     final media = mergedPost['media_attachments'] as List<dynamic>? ?? [];
     return Scaffold(
-      appBar: AppBar(title: const Text("Post")),
+      appBar: AppBar(
+        title: Text(
+          "Post from ${widget.account['username']}",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 23,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Color.fromRGBO(255, 117, 31, 1),
+      ),
       body: SingleChildScrollView(
         child: Card(
+          color: Colors.white,
           margin: const EdgeInsets.all(12),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -91,79 +102,84 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 🧍 Header Post (Profile + Username + Waktu)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: NetworkImage(
-                        widget.account['avatar_static'],
+                InkWell(
+                  onTap: () {
+                    context.push(Routes.profile, extra: widget.account['id']);
+                  },
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        backgroundImage: NetworkImage(
+                          widget.account['avatar_static'],
+                        ),
+                        radius: 22,
+                        backgroundColor: Colors.grey[200],
                       ),
-                      radius: 22,
-                      backgroundColor: Colors.grey[200],
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                mergedPost['display_name'] ??
-                                    widget.account['username'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  "@${widget.account['acct']}",
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  mergedPost['display_name'] ??
+                                      widget.account['username'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: const TextStyle(fontSize: 12),
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    builder: (context) {
-                                      return SafeArea(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: buildPostMenu(true),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                                child: const Padding(
-                                  padding: EdgeInsets.all(
-                                    4.0,
-                                  ), // kecilin area sentuh
-                                  child: Icon(
-                                    Icons.more_vert,
-                                    size:
-                                        18, // kecilin biar proporsional dengan teks
-                                    color: Colors.grey,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    "@${widget.account['acct']}",
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(fontSize: 12),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            widget.timeAgo,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                                GestureDetector(
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      builder: (context) {
+                                        return SafeArea(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: buildPostMenu(true),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(
+                                      4.0,
+                                    ), // kecilin area sentuh
+                                    child: Icon(
+                                      Icons.more_vert,
+                                      size:
+                                          18, // kecilin biar proporsional dengan teks
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            Text(
+                              widget.timeAgo,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 8),
@@ -249,83 +265,81 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                  ActionButton(icon: Icons.reply, onTap: () {}),
-                    ActionButton(
-                      icon: mergedPost['reblogged']
-                          ? Icons.repeat_one_rounded
-                          : Icons.repeat_rounded,
-                      onTap: () {},
-                      color: Colors.green,
-                    ),
-                    ActionButton(
-                      icon: mergedPost['favourited']
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      onTap: () async {
-                        final id = mergedPost['id'];
-                        final newValue = !mergedPost['favourited'];
+                      ActionButton(icon: Icons.reply, onTap: () {}),
+                      ActionButton(
+                        icon: mergedPost['reblogged']
+                            ? Icons.repeat_one_rounded
+                            : Icons.repeat_rounded,
+                        onTap: () {},
+                        color: Colors.green,
+                      ),
+                      ActionButton(
+                        icon: mergedPost['favourited']
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        onTap: () async {
+                          final id = mergedPost['id'];
+                          final newValue = !mergedPost['favourited'];
 
-                        // Optimistic update
-                        ref.read(postStateProvider.notifier).patch(id, {
-                          'favourited': newValue,
-                        });
-
-                        try {
-                          if (newValue) {
-                            await ref.read(
-                              favoritePostActionProvider(id).future,
-                            );
-                          } else {
-                            await ref.read(
-                              unfavoritePostActionProvider(id).future,
-                            );
-                          }
-                          print("is favourited ? $newValue");
-                        
-                        } catch (_) {
-                          // rollback
+                          // Optimistic update
                           ref.read(postStateProvider.notifier).patch(id, {
-                            'favourited': !newValue,
+                            'favourited': newValue,
                           });
-                        }
-                      },
 
-                      color: Colors.red,
-                    ),
-                    ActionButton(
-                      icon: mergedPost['bookmarked']
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
-                      onTap: () async {
-                        final id = mergedPost['id'];
-                        final newValue = !mergedPost['bookmarked'];
-
-                        // optimistic update
-                        ref.read(postStateProvider.notifier).patch(id, {
-                          'bookmarked': newValue,
-                        });
-
-                        try {
-                          if (newValue) {
-                            await ref.read(
-                              bookmarkPostActionProvider(id).future,
-                            );
-                          } else {
-                            await ref.read(
-                              unbookmarkPostActionProvider(id).future,
-                            );
+                          try {
+                            if (newValue) {
+                              await ref.read(
+                                favoritePostActionProvider(id).future,
+                              );
+                            } else {
+                              await ref.read(
+                                unfavoritePostActionProvider(id).future,
+                              );
+                            }
+                            print("is favourited ? $newValue");
+                          } catch (_) {
+                            // rollback
+                            ref.read(postStateProvider.notifier).patch(id, {
+                              'favourited': !newValue,
+                            });
                           }
-                        
-                        } catch (_) {
-                          // rollback
+                        },
+
+                        color: Colors.red,
+                      ),
+                      ActionButton(
+                        icon: mergedPost['bookmarked']
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                        onTap: () async {
+                          final id = mergedPost['id'];
+                          final newValue = !mergedPost['bookmarked'];
+
+                          // optimistic update
                           ref.read(postStateProvider.notifier).patch(id, {
-                            'bookmarked': !newValue,
+                            'bookmarked': newValue,
                           });
-                        }
-                      },
-                      color: Colors.red,
-                    ),
-                    ActionButton(icon: Icons.share_outlined, onTap: () {}),
+
+                          try {
+                            if (newValue) {
+                              await ref.read(
+                                bookmarkPostActionProvider(id).future,
+                              );
+                            } else {
+                              await ref.read(
+                                unbookmarkPostActionProvider(id).future,
+                              );
+                            }
+                          } catch (_) {
+                            // rollback
+                            ref.read(postStateProvider.notifier).patch(id, {
+                              'bookmarked': !newValue,
+                            });
+                          }
+                        },
+                        color: Colors.black,
+                      ),
+                      ActionButton(icon: Icons.share_outlined, onTap: () {}),
                     ],
                   ),
                 ),

@@ -37,6 +37,39 @@ Future<List<dynamic>> fetchHomeTimeline(
 }
 
 
+Future<List<dynamic>> fetchTagTimeline(
+  String baseUrl,
+  String accessToken,
+  String tag,
+  int limit,
+  String? maxId,
+  String? sinceId
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/timelines/tag/$tag").replace(
+    queryParameters: {
+      'limit': limit.toString(), // misal limit = 20
+      'max_id': maxId,
+      'since_id': sinceId
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
+
+
+  return jsonDecode(res.body);
+}
+
+
 Future<List<dynamic>> fetchStatusesUserById(
   String baseUrl,
   String accessToken,
@@ -63,6 +96,38 @@ Future<List<dynamic>> fetchStatusesUserById(
     throw Exception("Failed to load home timeline: ${res.body}");
   }
 
+
+  return jsonDecode(res.body);
+}
+
+
+
+Future<List<dynamic>> fetchStatusesUserByIdOnlyMedia(
+  String baseUrl,
+  String accessToken,
+  String? maxId,
+  String? sinceId,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/accounts/$id/statuses").replace(
+    queryParameters: {
+      'max_id': maxId,
+      'only_media': 'true',
+      'since_id': sinceId
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
 
   return jsonDecode(res.body);
 }

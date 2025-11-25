@@ -5,7 +5,6 @@ import 'package:mobileapp/state/credentials.dart';
 final currentUserProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
    final cred = await CredentialsRepository.loadCredentials();
   
-  print(cred.accToken);
   return fetchCurrentUser(cred.instanceUrl!, cred.accToken!);
 });
 

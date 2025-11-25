@@ -3,15 +3,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobileapp/routing/router.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/explore.dart';
+import 'package:mobileapp/state/globalpost.dart';
 import 'package:mobileapp/state/post.dart';
 import 'package:mobileapp/state/timeline.dart';
-import 'package:flutter_html/flutter_html.dart';
 import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/state/trends.dart';
+import 'package:mobileapp/state/user.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:mobileapp/ui/utils/FediverseImage.dart';
-import 'package:mobileapp/ui/utils/InstanceLink.dart';
 import 'package:mobileapp/ui/widgets/post_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -22,8 +22,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // List<dynamic> posts = [];
-  // int currentPage = 1;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -43,7 +41,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(homeTimelineProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('For you'),
@@ -128,11 +125,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
 
                   if (confirm == true) {
-                    Navigator.pop(context);
                     // TAMBAHKAN INI - Invalidate semua provider terkait
                     await CredentialsRepository.clearAll();
                     ref.invalidate(homeTimelineProvider);
-
+                    ref.invalidate(currentUserProvider);
+                    ref.invalidate(trendingLinksProvider);
+                    ref.invalidate(trendingTagsProvider);
+                    ref.invalidate(suggestedPeopleProvider);
+                    ref.invalidate(postStateProvider);
                     if (context.mounted) {
                       context.go(Routes.instance);
                     }
@@ -146,9 +146,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       body: RefreshIndicator(
         onRefresh: () async {
+          final user = await ref.read(currentUserProvider).value;
           ref.invalidate(homeTimelineProvider);
           ref.invalidate(favouritedTimelineProvider);
           ref.invalidate(bookmarkedTimelineProvider);
+          if (user != null) {
+            ref.invalidate(statusesTimelineProvider(user['id']));
+          }
+          ref.invalidate(postStateProvider);
         },
         child: timeline.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -176,12 +181,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               itemCount: posts.length,
               itemBuilder: (context, i) {
                 final post = posts[i];
-                final account = post['account'];
-                final createdAt = post['created_at'];
+
+                // Check apakah post ini reblog
+                final isReblog = post['reblog'] != null;
+
+                // Jika reblog, ambil konten post asli
+                final displayPost = isReblog
+                    ? post['reblog'] as Map<String, dynamic>
+                    : post;
+
+                // Akun yang menampilkan post ini
+                final displayAccount = isReblog
+                    ? post['reblog']['account']
+                    : post['account'];
+
+                final createdAt = displayPost['created_at'];
                 final timeAgo = createdAt != null
                     ? timeago.format(DateTime.parse(createdAt))
                     : '';
-                return PostCard(post: post, account: account, timeAgo: timeAgo);
+
+                return PostCard(
+                  post: displayPost, // konten asli jika reblog
+                  account: displayAccount, // user yang me-reblog / posting asli
+                  timeAgo: timeAgo,
+                  isReblog: isReblog, // optional flag
+                  rebloggedBy: isReblog
+                      ? post['account']
+                      : null, // user yang me-reblog
+                );
               },
             );
           },
