@@ -148,7 +148,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                                         return SafeArea(
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
-                                            children: buildPostMenu(true),
+                                            children: buildPostMenu(false),
                                           ),
                                         );
                                       },
@@ -339,7 +339,6 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                         },
                         color: Colors.black,
                       ),
-                      ActionButton(icon: Icons.share_outlined, onTap: () {}),
                     ],
                   ),
                 ),

@@ -16,10 +16,32 @@ class TrendingTagsNotifier extends AsyncNotifier<List<dynamic>> {
   }
 }
 
+
+
 final trendingTagsProvider =
     AsyncNotifierProvider<TrendingTagsNotifier, List<dynamic>>(
   () => TrendingTagsNotifier(),
 );
+
+class TrendingStatusesNotifier extends AsyncNotifier<List<dynamic>> {
+  @override
+  Future<List<dynamic>> build() async {
+    final cred = await CredentialsRepository.loadCredentials();
+    if (cred.accToken == null || cred.instanceUrl == null) {
+      return [];
+    }
+
+    return await fetchTrendingTags(cred.instanceUrl!, cred.accToken!);
+  }
+}
+
+
+
+final trendingStatusesProvider =
+    AsyncNotifierProvider<TrendingStatusesNotifier, List<dynamic>>(
+  () => TrendingStatusesNotifier(),
+);
+
 
 class TrendingLinksNotifier extends AsyncNotifier<List<dynamic>> {
   @override

@@ -337,3 +337,31 @@ Future<void> createFediversePost({
     throw Exception("Gagal posting");
   }
 }
+
+
+Future<List<dynamic>> fetchTrendingPost(
+  String baseUrl,
+  String accessToken,
+  String? maxId,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/trends/statuses").replace(
+    queryParameters: {
+      'max_id': maxId,
+    },
+  );
+
+  final res = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load home timeline: ${res.body}");
+  }
+
+
+  return jsonDecode(res.body);
+}

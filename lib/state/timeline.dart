@@ -252,3 +252,59 @@ class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
     ref.read(postStateProvider.notifier).mergePosts(state.posts);
   }
 }
+
+final trendingPostTimelineProvider =
+    AsyncNotifierProvider<TrendingPostTimelineNotifier, List<dynamic>>(
+      TrendingPostTimelineNotifier.new,
+    );
+
+class TrendingPostTimelineNotifier extends AsyncNotifier<List<dynamic>> {
+  String? tag; // tag aktif
+  String? maxId;
+  bool hasMore = true;
+
+  @override
+  Future<List<dynamic>> build() async {
+    // Tidak load apa-apa kalau tag belum ditentukan
+    return _loadInitial();
+  }
+
+  /// Load data awal
+  Future<List<dynamic>> _loadInitial() async {
+    final cred = await CredentialsRepository.loadCredentials();
+    if (cred.accToken == null || cred.instanceUrl == null) return [];
+
+    final posts = await fetchTrendingPost(
+      cred.instanceUrl!,
+      cred.accToken!,
+      null,
+    );
+
+    maxId = posts.isNotEmpty ? posts.last["id"] : null;
+    hasMore = posts.isNotEmpty;
+
+    return posts;
+  }
+
+  /// Load more untuk infinite scroll
+  Future<void> loadMore() async {
+    if (!hasMore || state.isLoading || tag == null) return;
+
+    final current = state.value ?? [];
+
+    state = AsyncValue.data(current); // tetap data saat loading
+
+    final cred = await CredentialsRepository.loadCredentials();
+
+    final more = await fetchTrendingPost(
+      cred.instanceUrl!,
+      cred.accToken!,
+      maxId,
+    );
+
+    maxId = more.isNotEmpty ? more.last["id"] : maxId;
+    hasMore = more.isNotEmpty;
+
+    state = AsyncValue.data([...current, ...more]);
+  }
+}

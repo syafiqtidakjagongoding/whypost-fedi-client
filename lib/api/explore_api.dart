@@ -8,7 +8,7 @@ Future<Map<String, dynamic>> searchAny(
 ) async {
   final uri = Uri.parse(
     "$baseUrl/api/v2/search",
-  ).replace(queryParameters: {"q": query, "limit": "20", "resolve": true});
+  ).replace(queryParameters: {"q": query, "limit": "20", "resolve": 'true'});
 
   final res = await http.get(
     uri,
@@ -68,3 +68,4 @@ Future<List<dynamic>> fetchSuggestedPeople(String baseUrl, String token) async {
 
   return jsonDecode(res.body);
 }
+

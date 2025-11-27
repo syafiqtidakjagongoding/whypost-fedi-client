@@ -396,7 +396,6 @@ class _PostCardState extends ConsumerState<PostCard> {
                     },
                     color: Colors.black,
                   ),
-                  ActionButton(icon: Icons.share_outlined, onTap: () {}),
                 ],
               ),
             ),

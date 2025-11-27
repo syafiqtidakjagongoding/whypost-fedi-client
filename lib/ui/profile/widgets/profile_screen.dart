@@ -54,7 +54,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             statusesOnlyMediaTimelineProvider(userId),
           );
           return DefaultTabController(
-            length: 3,
+            length: widget.id == null ? 4 : 3,
             child: RefreshIndicator(
               onRefresh: () async {
                 // invalidate semua provider timeline
@@ -215,26 +215,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
 
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withOpacity(1),
-                                  Colors.black.withOpacity(0.9),
-                                ],
-                              ),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // ===== USER NOTE (HTML BIO) =====
                                 Html(
-                                  data: user['note'],
+                                  data: user['note'] ?? "",
                                   onLinkTap: (url, attributes, element) {
                                     final uri = Uri.parse(
-                                      url!.startsWith('http')
+                                      url!.startsWith("http")
                                           ? url
-                                          : 'https://$url',
+                                          : "https://$url",
                                     );
                                     launchUrl(
                                       uri,
@@ -243,7 +246,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   },
                                   style: {
                                     "body": Style(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: FontSize(15),
                                       margin: Margins.zero,
                                       padding: HtmlPaddings.zero,
@@ -251,68 +254,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ),
                                     "p": Style(
                                       margin: Margins.only(bottom: 8),
-                                      color: Colors.white,
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    "b": Style(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                    "i": Style(fontStyle: FontStyle.italic),
-                                    "span": Style(
-                                      fontSize: FontSize(15),
-                                      color: Colors.white,
-                                    ),
                                     "a": Style(
-                                      color: Color.fromRGBO(255, 117, 31, 1),
+                                      color: const Color(0xFFFF751F),
                                       textDecoration: TextDecoration.none,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   },
                                 ),
-                                ElevatedButton(
-                                  onPressed: () async {
-                                    final isFollowing =
-                                        user['following'] as bool;
 
-                                    final credential =
-                                        await CredentialsRepository.loadCredentials();
-                                    if (credential.accToken == null ||
-                                        credential.instanceUrl == null) {
-                                      context.go(Routes.instance);
-                                      return;
-                                    }
-                                    if (isFollowing) {
-                                      // Unfollow API call
-                                      await unfollowUser(
-                                        instanceUrl: credential.instanceUrl!,
-                                        token: credential.accToken!,
-                                        userId: user['id'],
-                                      );
-                                    } else {
-                                      // Follow API call
-                                      await followUser(
-                                        instanceUrl: credential.instanceUrl!,
-                                        token: credential.accToken!,
-                                        userId: user['id'],
-                                      );
-                                    }
+                                const SizedBox(height: 16),
 
-                                    // Update local state / provider agar button rebuild
-                                    setState(() {
-                                      user['following'] = !isFollowing;
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: user['following'] == true
-                                        ? Colors.grey
-                                        : Colors.blue,
-                                  ),
-                                  child: Text(
-                                    user['following'] == true
-                                        ? "Following"
-                                        : "Follow",
-                                    style: TextStyle(color: Colors.white),
+                                // ===== FOLLOW BUTTON =====
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 44,
+                                  child: ElevatedButton(
+                                    onPressed: () async {
+                                      final isFollowing =
+                                          user['following'] as bool;
+
+                                      final credential =
+                                          await CredentialsRepository.loadCredentials();
+                                      if (credential.accToken == null ||
+                                          credential.instanceUrl == null) {
+                                        context.go(Routes.instance);
+                                        return;
+                                      }
+
+                                      if (isFollowing) {
+                                        await unfollowUser(
+                                          instanceUrl: credential.instanceUrl!,
+                                          token: credential.accToken!,
+                                          userId: user['id'],
+                                        );
+                                      } else {
+                                        await followUser(
+                                          instanceUrl: credential.instanceUrl!,
+                                          token: credential.accToken!,
+                                          userId: user['id'],
+                                        );
+                                      }
+
+                                      setState(
+                                        () => user['following'] = !isFollowing,
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: user['following'] == true
+                                          ? Colors.grey[800]
+                                          : Colors.blue,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: Text(
+                                      user['following'] == true
+                                          ? "Following"
+                                          : "Follow",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -336,6 +343,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ? "Saved post"
                                     : "About",
                               ),
+                              if (widget.id == null) Tab(text: "About"),
                             ],
                           ),
                         ],
@@ -550,6 +558,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
 
                     if (widget.id != null)
+                      userAsync.when(
+                        data: (user) {
+                          if (user!.isEmpty) {
+                            return Text("User error");
+                          }
+                          return Text(user['acct']);
+                        },
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text("Error: $e")),
+                      ),
+
+                    if (widget.id == null)
                       userAsync.when(
                         data: (user) {
                           if (user!.isEmpty) {

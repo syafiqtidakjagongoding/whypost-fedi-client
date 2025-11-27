@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:mobileapp/api/explore_api.dart';
@@ -21,34 +23,52 @@ final suggestedPeopleProvider =
 );
 
 
-final searchQueryProvider = StateProvider<String>((ref) => "");
 
 class SearchResultsNotifier extends AsyncNotifier<Map<String, dynamic>> {
+  Timer? _debounce;
+
   @override
   Future<Map<String, dynamic>> build() async {
     final query = ref.watch(searchQueryProvider);
 
-    if (query.trim().isEmpty) {
-      return {
-        "accounts": [],
-        "statuses": [],
-        "hashtags": [],
-      };
-    }
+    // Jangan langsung fetch, tapi debounce
+    _debounce?.cancel();
 
-    final cred = await CredentialsRepository.loadCredentials();
-    if (cred.accToken == null || cred.instanceUrl == null) {
-      return {};
-    }
+    final completer = Completer<Map<String, dynamic>>();
 
-    return await searchAny(
-      cred.instanceUrl!,
-      cred.accToken!,
-      query,
-    );
+    _debounce = Timer(const Duration(seconds: 1), () async {
+      if (query.trim().isEmpty) {
+        completer.complete({
+          "accounts": [],
+          "statuses": [],
+          "hashtags": [],
+        });
+        return;
+      }
+
+      final cred = await CredentialsRepository.loadCredentials();
+      if (cred.accToken == null || cred.instanceUrl == null) {
+        completer.complete({});
+        return;
+      }
+
+      final result = await searchAny(
+        cred.instanceUrl!,
+        cred.accToken!,
+        query,
+      );
+      print("search result $result");
+
+      completer.complete(result);
+    });
+
+    return completer.future;
   }
 }
 
 final searchResultsProvider = AsyncNotifierProvider<SearchResultsNotifier, Map<String, dynamic>>(
   () => SearchResultsNotifier(),
 );
+
+final searchDebounceProvider = StateProvider<Timer?>((ref) => null);
+final searchQueryProvider = StateProvider<String>((ref) => "");

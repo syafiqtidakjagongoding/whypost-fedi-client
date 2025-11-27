@@ -129,6 +129,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     await CredentialsRepository.clearAll();
                     ref.invalidate(homeTimelineProvider);
                     ref.invalidate(currentUserProvider);
+                    ref.invalidate(favouritedTimelineProvider);
+                    ref.invalidate(bookmarkedTimelineProvider);
                     ref.invalidate(trendingLinksProvider);
                     ref.invalidate(trendingTagsProvider);
                     ref.invalidate(suggestedPeopleProvider);
