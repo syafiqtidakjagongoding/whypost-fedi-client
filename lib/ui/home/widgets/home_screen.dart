@@ -41,6 +41,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(homeTimelineProvider);
+    ref.listen(currentUserProvider, (previous, next) {
+      next.whenData((user) async {
+        if (user != null) {
+          await CredentialsRepository.setCurrentUserId(user['id']);
+        }
+      });
+    });
     return Scaffold(
       appBar: AppBar(
         title: const Text('For you'),
@@ -126,14 +133,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   if (confirm == true) {
                     // TAMBAHKAN INI - Invalidate semua provider terkait
+                    final cred =
+                        await CredentialsRepository.loadAllCredentials();
                     await CredentialsRepository.clearAll();
                     ref.invalidate(homeTimelineProvider);
                     ref.invalidate(currentUserProvider);
+                    ref.invalidate(selectedUserProvider(cred.currentUserId!));
                     ref.invalidate(favouritedTimelineProvider);
                     ref.invalidate(bookmarkedTimelineProvider);
                     ref.invalidate(trendingLinksProvider);
                     ref.invalidate(trendingTagsProvider);
                     ref.invalidate(suggestedPeopleProvider);
+                    ref.invalidate(trendingPostTimelineProvider);
                     ref.invalidate(postStateProvider);
                     if (context.mounted) {
                       context.go(Routes.instance);

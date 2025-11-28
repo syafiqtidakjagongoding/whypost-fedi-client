@@ -34,7 +34,7 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
     final posts = await fetchHomeTimeline(
       cred.instanceUrl!,
       cred.accToken!,
-      30,
+      10,
       null,
       null,
     );
@@ -43,7 +43,6 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
       maxId = posts.last['id']; // cursor for pagination
       lastSinceId = posts.first['id'];
     }
-    ref.read(postStateProvider.notifier).mergePosts(posts);
     return posts;
   }
 
@@ -54,7 +53,7 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
       final morePosts = await fetchHomeTimeline(
         cred.instanceUrl!,
         cred.accToken!,
-        30,
+        10,
         maxId,
         null,
       );
@@ -64,7 +63,6 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
 
         state = AsyncData([...state.value!, ...morePosts]);
       }
-      ref.read(postStateProvider.notifier).mergePosts(morePosts);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
@@ -95,7 +93,6 @@ final statusesTimelineProvider = FutureProvider.family<List<dynamic>, String>((
     null, // since_id
     userId,
   );
-  ref.read(postStateProvider.notifier).mergePosts(posts);
 
   return posts;
 });
@@ -117,7 +114,6 @@ final statusesOnlyMediaTimelineProvider =
         null, // since_id
         userId,
       );
-      ref.read(postStateProvider.notifier).mergePosts(posts);
       return posts;
     });
 
@@ -136,7 +132,6 @@ final favouritedTimelineProvider = FutureProvider<List<dynamic>>((ref) async {
     null, // max_id
     null, // since_id
   );
-  ref.read(postStateProvider.notifier).mergePosts(posts);
   return posts;
 });
 
@@ -156,7 +151,6 @@ final bookmarkedTimelineProvider = FutureProvider<List<dynamic>>((ref) async {
     null, // since_id
   );
   // Masukkan ke postState agar lengkap
-  ref.read(postStateProvider.notifier).mergePosts(posts);
   return posts;
 });
 
@@ -213,7 +207,7 @@ class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
       cred.instanceUrl!,
       cred.accToken!,
       tag,
-      30,
+      10,
       null,
       null,
     );
@@ -224,7 +218,6 @@ class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
       hasMore: posts.isNotEmpty,
       maxId: posts.isNotEmpty ? posts.last['id'] : null,
     );
-    ref.read(postStateProvider.notifier).mergePosts(state.posts);
   }
 
   Future<void> loadMore() async {
@@ -238,7 +231,7 @@ class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
       cred.instanceUrl!,
       cred.accToken!,
       tag,
-      30,
+      10,
       state.maxId,
       null,
     );
@@ -249,7 +242,6 @@ class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
       hasMore: more.isNotEmpty,
       maxId: more.isNotEmpty ? more.last['id'] : state.maxId,
     );
-    ref.read(postStateProvider.notifier).mergePosts(state.posts);
   }
 }
 

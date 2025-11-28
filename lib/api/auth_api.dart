@@ -25,7 +25,6 @@ Future<String?> getAccessToken({
   }),
   );
 
-print("Raw Body = ${response.body}");
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
     return data['access_token'];

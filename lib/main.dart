@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/auth_api.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/app.dart';
-import 'package:mobileapp/state/post.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'routing/router.dart';

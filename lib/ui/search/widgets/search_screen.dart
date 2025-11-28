@@ -107,7 +107,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                   timer?.cancel();
 
                   ref.read(searchDebounceProvider.notifier).state = Timer(
-                    const Duration(seconds: 1),
+                    const Duration(milliseconds: 500),
                     () {
                       ref.read(searchQueryProvider.notifier).state = value;
                     },
@@ -557,11 +557,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                           final displayName = item["display_name"] ?? "Unknown";
                           final username = item["acct"] ?? "";
                           final followers = item["followers_count"] ?? 0;
-
                           return InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
-                              ref.invalidate(currentUserProvider);
                               ref.invalidate(selectedUserProvider(item['id']));
 
                               final id = item['id'];
@@ -675,7 +673,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                             return InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: () {
-                                ref.invalidate(currentUserProvider);
                                 ref.invalidate(selectedUserProvider(id));
                                 context.push(Routes.profile, extra: id);
                               },

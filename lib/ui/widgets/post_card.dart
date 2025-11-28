@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/action.dart';
+import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/state/globalpost.dart';
 import 'package:mobileapp/ui/utils/ActionButton.dart';
 import 'package:mobileapp/ui/utils/FediverseImage.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PostCard extends ConsumerStatefulWidget {
@@ -14,8 +16,7 @@ class PostCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> account;
   final String timeAgo;
   final bool isReblog;
-final Map<String, dynamic>? rebloggedBy;
-
+  final Map<String, dynamic>? rebloggedBy;
 
   const PostCard({
     Key? key,
@@ -23,7 +24,7 @@ final Map<String, dynamic>? rebloggedBy;
     required this.account,
     required this.timeAgo,
     required this.isReblog,
-    required this.rebloggedBy
+    required this.rebloggedBy,
   }) : super(key: key);
 
   @override
@@ -31,33 +32,47 @@ final Map<String, dynamic>? rebloggedBy;
 }
 
 class _PostCardState extends ConsumerState<PostCard> {
-  List<Widget> buildPostMenu(bool isUserPost) {
+  String? currentUserId;
+  List<Widget> buildPostMenu(bool isUserPost, bool isBookmarked) {
     final menu = <Widget>[];
 
     if (isUserPost) {
       menu.add(
         ListTile(
-          leading: Icon(Icons.edit, color: Colors.blue),
-          title: Text('Edit Postingan'),
+          leading: const Icon(Icons.edit, color: Colors.blue),
+          title: const Text('Edit Post'),
           onTap: () {},
         ),
       );
       menu.add(
         ListTile(
-          leading: Icon(Icons.delete, color: Colors.red),
-          title: Text('Hapus Postingan'),
+          leading: const Icon(Icons.delete, color: Colors.red),
+          title: const Text('Delete Post'),
           onTap: () {},
         ),
       );
-    } else {
-      menu.add(
-        ListTile(
-          leading: Icon(Icons.flag, color: Colors.orange),
-          title: Text('Laporkan Postingan'),
-          onTap: () {},
-        ),
-      );
+
+      menu.add(const Divider());
     }
+
+    menu.add(
+      ListTile(
+        leading: Icon(
+          isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+          color: Colors.deepPurple,
+        ),
+        title: Text(isBookmarked ? 'UnBookmark' : 'Bookmark Post'),
+        onTap: () {},
+      ),
+    );
+
+    menu.add(
+      ListTile(
+        leading: const Icon(Icons.flag, color: Colors.orange),
+        title: const Text('Report'),
+        onTap: () {},
+      ),
+    );
 
     return menu;
   }
@@ -65,19 +80,19 @@ class _PostCardState extends ConsumerState<PostCard> {
   @override
   void initState() {
     super.initState();
+    loadCred();
+  }
+
+  Future<void> loadCred() async {
+    final cred = await CredentialsRepository.loadAllCredentials();
+    setState(() {
+      currentUserId = cred.currentUserId;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final globalPatch = ref.watch(
-      postStateProvider.select((m) => m[widget.post['id']]),
-    );
-
-    final mergedPost = {
-      ...widget.post,
-      if (globalPatch != null) ...globalPatch,
-    };
-    final media = mergedPost['media_attachments'] as List<dynamic>? ?? [];
+    final media = widget.post['media_attachments'] as List<dynamic>? ?? [];
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -160,7 +175,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            mergedPost['display_name'] ??
+                            widget.post['display_name'] ??
                                 widget.account['username'],
                             style: const TextStyle(
                               fontSize: 16,
@@ -223,7 +238,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
-                              children: buildPostMenu(false),
+                              children: buildPostMenu(widget.account['id'].toString() == currentUserId.toString(), widget.post['bookmarked'])
                             ),
                           ),
                         );
@@ -240,7 +255,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                 context.push(
                   Routes.viewPost,
                   extra: {
-                    "post": Map<String, dynamic>.from(mergedPost),
+                    "post": widget.post,
                     "account": widget.account,
                     "timeAgo": widget.timeAgo,
                   },
@@ -251,7 +266,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Html(
-                      data: mergedPost['content'],
+                      data: widget.post['content'],
                       onLinkTap: (url, attributes, element) {
                         final uri = Uri.parse(
                           url!.startsWith('http') ? url : 'https://$url',
@@ -328,27 +343,23 @@ class _PostCardState extends ConsumerState<PostCard> {
                 children: [
                   ActionButton(icon: Icons.reply, onTap: () {}),
                   ActionButton(
-                    icon: mergedPost['reblogged']
+                    icon: widget.post['reblogged']
                         ? Icons.repeat_one_rounded
                         : Icons.repeat_rounded,
                     onTap: () {},
                     color: Colors.green,
                   ),
                   ActionButton(
-                    icon: mergedPost['favourited']
-                        ? Icons.favorite
-                        : Icons.favorite_border,
+                    icon: widget.post['favourited']
+                        ? Icons.star
+                        : Icons.star_border,
                     onTap: () async {
-                      final id = mergedPost['id'];
-                      final newValue = !mergedPost['favourited'];
+                      final id = widget.post['id'];
+                      final newValue = !widget.post['favourited'];
 
                       // Optimistic update
-                      ref.read(postStateProvider.notifier).patch(id, {
-                        'favourited': newValue,
-                      });
 
                       try {
-                        print("is favourited ? $newValue");
                         if (newValue) {
                           await ref.read(favoritePostActionProvider(id).future);
                         } else {
@@ -356,45 +367,22 @@ class _PostCardState extends ConsumerState<PostCard> {
                             unfavoritePostActionProvider(id).future,
                           );
                         }
-                      } catch (_) {
+                      } catch (e) {
                         // rollback
-                        ref.read(postStateProvider.notifier).patch(id, {
-                          'favourited': !newValue,
-                        });
+                        print(e);
                       }
                     },
 
                     color: Colors.red,
                   ),
                   ActionButton(
-                    icon: mergedPost['bookmarked']
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
+                    icon: Icons.share,
                     onTap: () async {
-                      final id = mergedPost['id'];
-                      final newValue = !mergedPost['bookmarked'];
-
-                      // optimistic update
-                      ref.read(postStateProvider.notifier).patch(id, {
-                        'bookmarked': newValue,
-                      });
-
-                      try {
-                        if (newValue) {
-                          await ref.read(bookmarkPostActionProvider(id).future);
-                        } else {
-                          await ref.read(
-                            unbookmarkPostActionProvider(id).future,
-                          );
-                        }
-                      } catch (_) {
-                        // rollback
-                        ref.read(postStateProvider.notifier).patch(id, {
-                          'bookmarked': !newValue,
-                        });
-                      }
+                      // ignore: deprecated_member_use
+                      await SharePlus.instance.share(
+                        ShareParams(text: widget.post['url']),
+                      );
                     },
-                    color: Colors.black,
                   ),
                 ],
               ),
@@ -405,3 +393,35 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 }
+
+
+//  ActionButton(
+//                     icon: mergedPost['bookmarked']
+//                         ? Icons.bookmark_rounded
+//                         : Icons.bookmark_border_rounded,
+//                     onTap: () async {
+//                       final id = mergedPost['id'];
+//                       final newValue = !mergedPost['bookmarked'];
+
+//                       // optimistic update
+//                       ref.read(postStateProvider.notifier).patch(id, {
+//                         'bookmarked': newValue,
+//                       });
+
+//                       try {
+//                         if (newValue) {
+//                           await ref.read(bookmarkPostActionProvider(id).future);
+//                         } else {
+//                           await ref.read(
+//                             unbookmarkPostActionProvider(id).future,
+//                           );
+//                         }
+//                       } catch (_) {
+//                         // rollback
+//                         ref.read(postStateProvider.notifier).patch(id, {
+//                           'bookmarked': !newValue,
+//                         });
+//                       }
+//                     },
+//                     color: Colors.black,
+//                   ),

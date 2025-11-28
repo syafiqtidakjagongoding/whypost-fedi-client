@@ -1,18 +1,13 @@
+import 'package:mobileapp/state/credentials.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/action.dart';
 import 'package:mobileapp/state/globalpost.dart';
-import 'package:mobileapp/state/post.dart';
-import 'package:mobileapp/state/postNotifier.dart';
-import 'package:mobileapp/state/user.dart';
 import 'package:mobileapp/ui/utils/FediverseImage.dart';
-import 'package:mobileapp/ui/widgets/post_images.dart';
-import 'package:timeago/timeago.dart' as timeago;
-import 'package:mobileapp/domain/posts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobileapp/ui/utils/ActionButton.dart';
 
@@ -33,33 +28,47 @@ class ViewpostScreen extends ConsumerStatefulWidget {
 }
 
 class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
-  List<Widget> buildPostMenu(bool isUserPost) {
+    String? currentUserId;
+  List<Widget> buildPostMenu(bool isUserPost, bool isBookmarked) {
     final menu = <Widget>[];
 
     if (isUserPost) {
       menu.add(
         ListTile(
-          leading: Icon(Icons.edit, color: Colors.blue),
-          title: Text('Edit Postingan'),
+          leading: const Icon(Icons.edit, color: Colors.blue),
+          title: const Text('Edit Postingan'),
           onTap: () {},
         ),
       );
       menu.add(
         ListTile(
-          leading: Icon(Icons.delete, color: Colors.red),
-          title: Text('Hapus Postingan'),
+          leading: const Icon(Icons.delete, color: Colors.red),
+          title: const Text('Hapus Postingan'),
           onTap: () {},
         ),
       );
-    } else {
-      menu.add(
-        ListTile(
-          leading: Icon(Icons.flag, color: Colors.orange),
-          title: Text('Laporkan Postingan'),
-          onTap: () {},
-        ),
-      );
+
+      menu.add(const Divider());
     }
+
+    menu.add(
+      ListTile(
+        leading: Icon(
+          isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+          color: Colors.deepPurple,
+        ),
+        title: Text(isBookmarked ? 'UnBookmark' : 'Bookmark Post'),
+        onTap: () {},
+      ),
+    );
+
+    menu.add(
+      ListTile(
+        leading: const Icon(Icons.flag, color: Colors.orange),
+        title: const Text('Report'),
+        onTap: () {},
+      ),
+    );
 
     return menu;
   }
@@ -67,19 +76,18 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
   @override
   void initState() {
     super.initState();
+    loadCred();
+  }
+   Future<void> loadCred() async {
+    final cred = await CredentialsRepository.loadAllCredentials();
+    setState(() {
+      currentUserId = cred.currentUserId;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final globalPatch = ref.watch(
-      postStateProvider.select((m) => m[widget.post['id']]),
-    );
-
-    final mergedPost = {
-      ...widget.post,
-      if (globalPatch != null) ...globalPatch,
-    };
-    final media = mergedPost['media_attachments'] as List<dynamic>? ?? [];
+    final media = widget.post['media_attachments'] as List<dynamic>? ?? [];
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -124,7 +132,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                             Row(
                               children: [
                                 Text(
-                                  mergedPost['display_name'] ??
+                                  widget.post['display_name'] ??
                                       widget.account['username'],
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
@@ -148,7 +156,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                                         return SafeArea(
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
-                                            children: buildPostMenu(false),
+                                           children: buildPostMenu(widget.account['id'].toString() == currentUserId.toString(), widget.post['bookmarked'])
                                           ),
                                         );
                                       },
@@ -187,7 +195,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Html(
-                    data: mergedPost['content'],
+                    data: widget.post['content'],
                     onLinkTap: (url, attributes, element) {
                       final uri = Uri.parse(
                         url!.startsWith('http') ? url : 'https://$url',
@@ -267,24 +275,21 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                     children: [
                       ActionButton(icon: Icons.reply, onTap: () {}),
                       ActionButton(
-                        icon: mergedPost['reblogged']
+                        icon: widget.post['reblogged']
                             ? Icons.repeat_one_rounded
                             : Icons.repeat_rounded,
                         onTap: () {},
                         color: Colors.green,
                       ),
                       ActionButton(
-                        icon: mergedPost['favourited']
+                        icon: widget.post['favourited']
                             ? Icons.favorite
                             : Icons.favorite_border,
                         onTap: () async {
-                          final id = mergedPost['id'];
-                          final newValue = !mergedPost['favourited'];
+                          final id = widget.post['id'];
+                          final newValue = !widget.post['favourited'];
 
                           // Optimistic update
-                          ref.read(postStateProvider.notifier).patch(id, {
-                            'favourited': newValue,
-                          });
 
                           try {
                             if (newValue) {
@@ -296,48 +301,22 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                                 unfavoritePostActionProvider(id).future,
                               );
                             }
-                            print("is favourited ? $newValue");
-                          } catch (_) {
+                          } catch (e) {
                             // rollback
-                            ref.read(postStateProvider.notifier).patch(id, {
-                              'favourited': !newValue,
-                            });
+                            print(e);
                           }
                         },
 
                         color: Colors.red,
                       ),
                       ActionButton(
-                        icon: mergedPost['bookmarked']
-                            ? Icons.bookmark_rounded
-                            : Icons.bookmark_border_rounded,
+                        icon: Icons.share,
                         onTap: () async {
-                          final id = mergedPost['id'];
-                          final newValue = !mergedPost['bookmarked'];
-
-                          // optimistic update
-                          ref.read(postStateProvider.notifier).patch(id, {
-                            'bookmarked': newValue,
-                          });
-
-                          try {
-                            if (newValue) {
-                              await ref.read(
-                                bookmarkPostActionProvider(id).future,
-                              );
-                            } else {
-                              await ref.read(
-                                unbookmarkPostActionProvider(id).future,
-                              );
-                            }
-                          } catch (_) {
-                            // rollback
-                            ref.read(postStateProvider.notifier).patch(id, {
-                              'bookmarked': !newValue,
-                            });
-                          }
+                          // ignore: deprecated_member_use
+                          await SharePlus.instance.share(
+                            ShareParams(text: widget.post['url']),
+                          );
                         },
-                        color: Colors.black,
                       ),
                     ],
                   ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/ui/addpost/widgets/addpost_screen.dart';
 import 'package:mobileapp/ui/home/widgets/home_screen.dart';
 import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
@@ -119,8 +120,9 @@ final router = GoRouter(
         ),
         GoRoute(
           path: Routes.profile,
-          builder: (context, state) {
-             final id = state.extra as String?;
+          builder: (context, state)  {
+            final  id = state.extra as String?;
+          
 
             return ProfileScreen(id: id);
           },

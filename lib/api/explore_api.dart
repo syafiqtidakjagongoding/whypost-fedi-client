@@ -21,7 +21,6 @@ Future<Map<String, dynamic>> searchAny(
   if (res.statusCode != 200) {
     throw Exception("Failed to search: ${res.body}");
   }
-  print("searching ${jsonDecode(res.body)}");
   return jsonDecode(res.body);
 }
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/state/instance.dart';
 
 class ChooseInstancePage extends ConsumerStatefulWidget {
@@ -17,9 +18,7 @@ class ChooseInstancePage extends ConsumerStatefulWidget {
 
 class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
   final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController(
-    text: 'https://mastodon.social',
-  );
+  final _controller = TextEditingController(text: 'https://mastodon.social');
   bool _loading = false;
   String? _message;
 
@@ -33,8 +32,6 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
     return null;
   }
 
-  
-
   Future<void> _checkInstance() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -46,14 +43,44 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
     final instance = _controller.text.trim();
 
     try {
+      final nodeinfo = await detectNodeInfo(instance);
+      final software = nodeinfo['software'];
+
+      if (software == null) {
+        throw Exception("Nodeinfo missing: software");
+      }
+
+      // jika software string
+      if (software is String) {
+        await CredentialsRepository.setSoftwareName(software);
+      }
+
+      // jika software Map tapi name bukan string
+      if (software is Map<String, dynamic>) {
+        final name = software['name'];
+
+        if (name is String) {
+          print("string $name");
+          await CredentialsRepository.setSoftwareName(name);
+        } else if (name is Map) {
+          print("map ${name.values.first}");
+          await CredentialsRepository.setSoftwareName(name.values.first);
+        } else {
+          throw Exception("Unknown fediverse software instance format");
+        }
+      }
+
       final redirectUri = "whypostapp://callback";
       // Coba ambil info instance dari /api/v1/instance (Mastodon-compatible)
       final uri = Uri.parse('$instance/api/v1/instance');
-       final response = await http
+      final response = await http
           .get(uri)
-          .timeout(const Duration(seconds: 7), onTimeout: () {
-        throw TimeoutException("Instance take too longer to respond");
-      });
+          .timeout(
+            const Duration(seconds: 7),
+            onTimeout: () {
+              throw TimeoutException("Instance take too longer to respond");
+            },
+          );
       dynamic jsonData;
       if (response.statusCode == 200) {
         // Parse JSON body
@@ -92,6 +119,7 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
         _message = "Request timed out. The server is too slow.";
       });
     } catch (e) {
+      print(e);
       setState(() {
         _message = "Failed to check instance: $e";
       });
@@ -118,6 +146,62 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
     }
 
     return u;
+  }
+
+  Future<dynamic> detectNodeInfo(String instance) async {
+    try {
+      // 1. Fetch nodeinfo metadata
+      final wellKnownUri = Uri.parse('$instance/.well-known/nodeinfo');
+      final wellKnownRes = await http
+          .get(wellKnownUri)
+          .timeout(
+            const Duration(seconds: 7),
+            onTimeout: () {
+              throw TimeoutException("Instance is too slow to respond");
+            },
+          );
+
+      if (wellKnownRes.statusCode != 200) {
+        throw Exception("Failed to fetch .well-known/nodeinfo");
+      }
+
+      final wellKnownJson = jsonDecode(wellKnownRes.body);
+
+      if (wellKnownJson['links'] == null ||
+          wellKnownJson['links'] is! List ||
+          wellKnownJson['links'].isEmpty) {
+        throw Exception("No nodeinfo links found");
+      }
+
+      // 2. Ambil link schema tertinggi (prioritas 2.1, lalu 2.0)
+      List links = wellKnownJson['links'];
+      links.sort((a, b) => b['rel'].compareTo(a['rel'])); // sort descending
+      final firstHref = links.first['href'];
+      print(firstHref);
+      if (firstHref == null) {
+        throw Exception("Nodeinfo href is null");
+      }
+
+      final nodeinfoUri = Uri.parse(firstHref);
+
+      // 3. Fetch nodeinfo detail
+      final nodeinfoRes = await http
+          .get(nodeinfoUri)
+          .timeout(
+            const Duration(seconds: 7),
+            onTimeout: () => throw TimeoutException("Nodeinfo URL timeout"),
+          );
+
+      if (nodeinfoRes.statusCode != 200) {
+        throw Exception("Failed to fetch nodeinfo detail");
+      }
+
+      final nodeinfo = jsonDecode(nodeinfoRes.body);
+
+      return nodeinfo;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   @override
@@ -180,4 +264,8 @@ class _ChooseInstancePageState extends ConsumerState<ChooseInstancePage> {
       ),
     );
   }
+}
+
+extension on Future<Map<String, dynamic>> {
+  operator [](String other) {}
 }

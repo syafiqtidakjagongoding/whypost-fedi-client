@@ -10,12 +10,16 @@ class AllCredentials {
   final String? instanceUrl;
   final String? clientId;
   final String? clientSecret;
+  final String? softwareName;
+  final String? currentUserId;
 
   const AllCredentials({
     required this.accToken,
     required this.instanceUrl,
     required this.clientId,
     required this.clientSecret,
+    required this.softwareName,
+    required this.currentUserId,
   });
 }
 
@@ -48,6 +52,16 @@ class CredentialsRepository {
     await prefs.setString(_clientSecret, clientSecret);
   }
 
+  static Future<void> setCurrentUserId(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("current_user_id", userId);
+  }
+
+  static Future<void> setSoftwareName(String softwareName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("software_name", softwareName);
+  }
+
   /// ambil access token
   static Future<AllCredentials> loadAllCredentials() async {
     final prefs = await SharedPreferences.getInstance();
@@ -55,12 +69,16 @@ class CredentialsRepository {
     final instanceUrl = prefs.getString(_instanceurl);
     final clientId = prefs.getString(_clientId);
     final clientSecret = prefs.getString(_clientSecret);
+    final softwareName = prefs.getString("software_name");
+    final currentUserId = prefs.getString("current_user_id");
 
     return AllCredentials(
       accToken: token,
       instanceUrl: instanceUrl,
       clientId: clientId,
       clientSecret: clientSecret,
+      softwareName: softwareName,
+      currentUserId: currentUserId,
     );
   }
 
@@ -90,7 +108,6 @@ class CredentialsRepository {
       }),
     );
 
-   
     await prefs.clear();
     await prefs.reload();
   }

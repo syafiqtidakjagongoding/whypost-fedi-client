@@ -20,6 +20,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  String? finalId = "";
   @override
   void initState() {
     super.initState();
@@ -27,14 +28,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> loadCred() async {
-    setState(() {}); // supaya build dipanggil ulang
+    if (widget.id == null || widget.id == "") {
+      final cred = await CredentialsRepository.loadAllCredentials();
+      setState(() {
+        finalId = cred.currentUserId;
+      });
+    } else {
+      finalId = widget.id;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final userAsync = widget.id == null
-        ? ref.watch(currentUserProvider)
-        : ref.watch(selectedUserProvider(widget.id!));
+     if (finalId == null) {
+    return const Center(child: CircularProgressIndicator());
+  }
+    final userAsync = ref.watch(selectedUserProvider(finalId!));
 
     return Scaffold(
       body: userAsync.when(
