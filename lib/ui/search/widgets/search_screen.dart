@@ -9,7 +9,7 @@ import 'package:mobileapp/state/explore.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/state/trends.dart';
 import 'package:mobileapp/state/user.dart';
-import 'package:mobileapp/ui/widgets/post_card.dart';
+import 'package:mobileapp/ui/posts/post_card.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';

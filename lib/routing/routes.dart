@@ -9,4 +9,8 @@ abstract final class Routes {
   static const instance = "/chooseinstance";
   static const instanceAuthPage = "/instanceauth";
   static const tagPosts = "/tags/:name";
+  static const viewVideo = "/video";
+  static const viewImages = "/images";
+  static const settings = "/settings";
+  static const algorithm = "/algorithm";
 }

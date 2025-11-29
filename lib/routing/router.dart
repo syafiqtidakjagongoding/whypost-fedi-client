@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/credentials.dart';
-import 'package:mobileapp/ui/addpost/widgets/addpost_screen.dart';
+import 'package:mobileapp/ui/posts/addpost_screen.dart';
 import 'package:mobileapp/ui/home/widgets/home_screen.dart';
 import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
 import 'package:mobileapp/ui/profile/widgets/profile_screen.dart';
 import 'package:mobileapp/ui/instance/widgets/ChoosingInstance.dart';
 import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
+import 'package:mobileapp/ui/settings/widgets/algorithm.dart';
+import 'package:mobileapp/ui/settings/widgets/settings_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
 import 'package:mobileapp/ui/tags/TagPostsScreen.dart';
-import 'package:mobileapp/ui/viewpost/viewpost_screen.dart';
+import 'package:mobileapp/ui/utils/FediverseVideo.dart';
+import 'package:mobileapp/ui/utils/FullScreenVideoPlayer.dart';
+import 'package:mobileapp/ui/utils/FullScreenImageViewer.dart';
+import 'package:mobileapp/ui/posts/viewpost_screen.dart';
 
 final router = GoRouter(
   initialLocation: Routes.splash,
@@ -29,6 +34,30 @@ final router = GoRouter(
 
         final instanceData = extra["instanceData"] as Map<String, dynamic>;
         return InstanceAuthPage(instanceData: instanceData);
+      },
+    ),
+    GoRoute(
+      path: Routes.viewVideo,
+      builder: (context, state) {
+        final extra = state.extra as String;
+
+        return FullscreenVideoPlayer(url: extra.toString());
+      },
+    ),
+    GoRoute(
+      path: Routes.settings,
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: Routes.algorithm,
+      builder: (context, state) => const AlgorithmScreen(),
+    ),
+    GoRoute(
+      path: Routes.viewImages,
+      builder: (context, state) {
+        final extra = state.extra as String;
+
+        return FullScreenImageViewer(url: extra.toString());
       },
     ),
 
@@ -120,11 +149,10 @@ final router = GoRouter(
         ),
         GoRoute(
           path: Routes.profile,
-          builder: (context, state)  {
-            final  id = state.extra as String?;
-          
+          builder: (context, state) {
+            final id = state.extra as String?;
 
-            return ProfileScreen(id: id);
+            return ProfileScreen(identifier: id);
           },
         ),
         GoRoute(

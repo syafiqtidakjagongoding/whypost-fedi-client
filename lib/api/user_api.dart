@@ -18,6 +18,25 @@ Future<Map<String, dynamic>?> fetchUserById(
   }
 }
 
+Future<Map<String, dynamic>?> fetchUserByAcct(
+  String acct, // ganti dari id ke acct
+  String instanceUrl,
+  String token,
+) async {
+  final url = Uri.parse(
+    'https://$instanceUrl/api/v1/accounts/lookup',
+  ).replace(queryParameters: {'acct': acct}); // <-- query param
+  print("prin $url");
+  final res = await http.get(url, headers: {"Authorization": "Bearer $token"});
+
+  if (res.statusCode == 200) {
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  } else {
+    print('Error fetch user: ${res.statusCode} ${res.body}');
+    return null;
+  }
+}
+
 Future<Map<String, dynamic>?> fetchCurrentUser(
   String instanceUrl,
   String token,

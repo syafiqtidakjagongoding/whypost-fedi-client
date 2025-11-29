@@ -6,16 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/explore.dart';
 import 'package:mobileapp/state/globalpost.dart';
-import 'package:mobileapp/state/post.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/state/trends.dart';
 import 'package:mobileapp/state/user.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:mobileapp/ui/widgets/post_card.dart';
+import 'package:mobileapp/ui/posts/post_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  final String? instanceUrl;
+  const HomeScreen({super.key, this.instanceUrl});
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -23,7 +23,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
-
+  String? instanceUrl;
   @override
   void initState() {
     super.initState();
@@ -36,11 +36,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         notifier.loadMore(); // INFINITE SCROLL TRIGGER
       }
     });
+    _loadInstance();
+  }
+
+  Future<void> _loadInstance() async {
+    final url = await CredentialsRepository.getInstanceUrl();
+    setState(() => instanceUrl = url);
   }
 
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(homeTimelineProvider);
+
     ref.listen(currentUserProvider, (previous, next) {
       next.whenData((user) async {
         if (user != null) {
@@ -62,11 +69,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: [
             // Header
-            const DrawerHeader(
+            DrawerHeader(
               decoration: BoxDecoration(color: Color.fromRGBO(255, 117, 31, 1)),
               child: Align(
-                alignment: Alignment.bottomLeft,
+                alignment: Alignment.centerLeft,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment:
+                      MainAxisAlignment.end, // supaya berada di bawah
                   children: [
                     Text(
                       'Menu',
@@ -76,6 +86,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 8), // jarak antar teks
+                    if (instanceUrl != null)
+                      Text(instanceUrl!, style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -84,18 +97,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // ==== Menu list ====
             ListTile(
               leading: const Icon(Icons.home),
-              title: const Text("Beranda"),
-              onTap: () {},
+              title: const Text("Profile"),
+              onTap: () {
+                context.push(Routes.profile);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.person),
-              title: const Text("Profil"),
-              onTap: () {},
+              title: const Text("Algorithm"),
+              onTap: () {
+                context.push(Routes.algorithm);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
-              title: const Text("Pengaturan"),
-              onTap: () {},
+              title: const Text("Settings"),
+              onTap: () {
+                context.push(Routes.settings);
+              },
             ),
 
             // ===== Spacer mendorong logout ke bawah =====
@@ -145,7 +164,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ref.invalidate(trendingTagsProvider);
                     ref.invalidate(suggestedPeopleProvider);
                     ref.invalidate(trendingPostTimelineProvider);
-                    ref.invalidate(postStateProvider);
                     if (context.mounted) {
                       context.go(Routes.instance);
                     }

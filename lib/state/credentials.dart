@@ -82,6 +82,16 @@ class CredentialsRepository {
     );
   }
 
+  static Future<String?> getCurrentUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString("current_user_id");
+  }
+
+  static Future<String?> getInstanceUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_instanceurl);
+  }
+
   static Future<Credentials> loadCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_keyToken);

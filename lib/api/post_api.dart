@@ -229,6 +229,52 @@ Future<Map<String, dynamic>> bookmarkPost(
   return jsonDecode(res.body);
 }
 
+
+Future<Map<String, dynamic>> reblogPost(
+  String baseUrl,
+  String accessToken,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/statuses/$id/reblog");
+
+  final res = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to reblog post: ${res.body}");
+  }
+  return jsonDecode(res.body);
+}
+
+
+Future<Map<String, dynamic>> unreblogPost(
+  String baseUrl,
+  String accessToken,
+  String id,
+) async {
+  final uri = Uri.parse("$baseUrl/api/v1/statuses/$id/unreblog");
+
+  final res = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to unreblog post: ${res.body}");
+  }
+  return jsonDecode(res.body);
+}
+
 Future<Map<String, dynamic>> unbookmarkPost(
   String baseUrl,
   String accessToken,

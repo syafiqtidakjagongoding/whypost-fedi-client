@@ -6,44 +6,44 @@ import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/state/timeline.dart';
-import 'package:mobileapp/ui/widgets/post_card.dart';
+import 'package:mobileapp/ui/posts/post_card.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:mobileapp/state/user.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  final String? id;
-  ProfileScreen({super.key, this.id});
+  final String? identifier;
+  ProfileScreen({super.key, this.identifier});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  String? finalId = "";
+  String? finalIdentifier = "";
   @override
   void initState() {
     super.initState();
-    loadCred();
+    checkUser();
   }
 
-  Future<void> loadCred() async {
-    if (widget.id == null || widget.id == "") {
+  Future<void> checkUser() async {
+    if (widget.identifier == null || widget.identifier == "") {
       final cred = await CredentialsRepository.loadAllCredentials();
       setState(() {
-        finalId = cred.currentUserId;
+        finalIdentifier = cred.currentUserId;
       });
     } else {
-      finalId = widget.id;
+      finalIdentifier = widget.identifier;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-     if (finalId == null) {
-    return const Center(child: CircularProgressIndicator());
-  }
-    final userAsync = ref.watch(selectedUserProvider(finalId!));
+    if (finalIdentifier == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final userAsync = ref.watch(selectedUserProvider(finalIdentifier!));
 
     return Scaffold(
       body: userAsync.when(
@@ -53,17 +53,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           final userId = user!['id'];
           // Watch timeline AFTER user successfully loaded
           final statusesAsync = ref.watch(statusesTimelineProvider(userId));
-          final favouritedAsync = widget.id == null
+          final favouritedAsync = widget.identifier == null
               ? ref.watch(favouritedTimelineProvider)
               : AsyncValue.data([]);
-          final bookmarkedAsync = widget.id == null
+          final bookmarkedAsync = widget.identifier == null
               ? ref.watch(bookmarkedTimelineProvider)
               : AsyncValue.data([]);
           final statusesOnlyMediaAsync = ref.watch(
             statusesOnlyMediaTimelineProvider(userId),
           );
           return DefaultTabController(
-            length: widget.id == null ? 4 : 3,
+            length: widget.identifier == null ? 4 : 3,
             child: RefreshIndicator(
               onRefresh: () async {
                 // invalidate semua provider timeline
@@ -109,7 +109,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ),
                                   ),
                                 ),
-                                if (widget.id != null)
+                                if (widget.identifier != null)
                                   Positioned(
                                     top: 16,
                                     left: 16,
@@ -342,17 +342,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             unselectedLabelColor: Colors.grey,
                             tabs: [
                               Tab(
-                                text: widget.id == null
+                                text: widget.identifier == null
                                     ? "Your posts"
                                     : "Posts",
                               ),
-                              Tab(text: widget.id == null ? "Likes" : "Media"),
+                              Tab(text: widget.identifier == null ? "Likes" : "Media"),
                               Tab(
-                                text: widget.id == null
+                                text: widget.identifier == null
                                     ? "Saved post"
                                     : "About",
                               ),
-                              if (widget.id == null) Tab(text: "About"),
+                              if (widget.identifier == null) Tab(text: "About"),
                             ],
                           ),
                         ],
@@ -414,7 +414,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
 
                     // ==== TAB 2: FAVOURITES ====
-                    if (widget.id == null)
+                    if (widget.identifier == null)
                       favouritedAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -465,7 +465,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         },
                       ),
 
-                    if (widget.id != null)
+                    if (widget.identifier != null)
                       statusesOnlyMediaAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -515,7 +515,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
 
                     // ==== TAB 3: BOOKMARKS ====
-                    if (widget.id == null)
+                    if (widget.identifier == null)
                       bookmarkedAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -566,7 +566,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         },
                       ),
 
-                    if (widget.id != null)
+                    if (widget.identifier != null)
                       userAsync.when(
                         data: (user) {
                           if (user!.isEmpty) {
@@ -579,7 +579,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         error: (e, _) => Center(child: Text("Error: $e")),
                       ),
 
-                    if (widget.id == null)
+                    if (widget.identifier == null)
                       userAsync.when(
                         data: (user) {
                           if (user!.isEmpty) {

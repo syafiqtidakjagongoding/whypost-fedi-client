@@ -1,4 +1,6 @@
 import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/ui/posts/post_media.dart';
+import 'package:mobileapp/ui/utils/EmojiText.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -28,7 +30,7 @@ class ViewpostScreen extends ConsumerStatefulWidget {
 }
 
 class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
-    String? currentUserId;
+  String? currentUserId;
   List<Widget> buildPostMenu(bool isUserPost, bool isBookmarked) {
     final menu = <Widget>[];
 
@@ -58,7 +60,15 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
           color: Colors.deepPurple,
         ),
         title: Text(isBookmarked ? 'UnBookmark' : 'Bookmark Post'),
-        onTap: () {},
+        onTap: () {
+          if (isBookmarked) {
+            ref.read(unbookmarkPostActionProvider(widget.post['id']));
+          } else {
+            ref.read(bookmarkPostActionProvider(widget.post['id']));
+
+          }
+
+        },
       ),
     );
 
@@ -78,7 +88,8 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
     super.initState();
     loadCred();
   }
-   Future<void> loadCred() async {
+
+  Future<void> loadCred() async {
     final cred = await CredentialsRepository.loadAllCredentials();
     setState(() {
       currentUserId = cred.currentUserId;
@@ -156,7 +167,11 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                                         return SafeArea(
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
-                                           children: buildPostMenu(widget.account['id'].toString() == currentUserId.toString(), widget.post['bookmarked'])
+                                            children: buildPostMenu(
+                                              widget.account['id'].toString() ==
+                                                  currentUserId.toString(),
+                                              widget.post['bookmarked'],
+                                            ),
                                           ),
                                         );
                                       },
@@ -194,37 +209,9 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Html(
-                    data: widget.post['content'],
-                    onLinkTap: (url, attributes, element) {
-                      final uri = Uri.parse(
-                        url!.startsWith('http') ? url : 'https://$url',
-                      );
-                      launchUrl(uri, mode: LaunchMode.externalApplication);
-                    },
-                    style: {
-                      "body": Style(
-                        fontSize: FontSize(15),
-                        margin: Margins.zero,
-                        padding: HtmlPaddings.zero,
-                        lineHeight: LineHeight(1.5),
-                      ),
-                      "p": Style(
-                        margin: Margins.only(bottom: 8),
-                        color: Colors.black87,
-                      ),
-                      "b": Style(fontWeight: FontWeight.bold),
-                      "i": Style(fontStyle: FontStyle.italic),
-                      "span": Style(
-                        fontSize: FontSize(15),
-                        color: Colors.black87,
-                      ),
-                      "a": Style(
-                        color: Color.fromRGBO(255, 117, 31, 1),
-                        textDecoration: TextDecoration.none,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    },
+                  child: EmojiText(
+                    content: widget.post['content'],
+                    emojis: widget.post['emojis'],
                   ),
                 ),
 
@@ -233,33 +220,9 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                 if (media.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: Column(
-                      children: media.asMap().entries.map((entry) {
-                        final m = entry.value;
-                        final url = m['url'];
-                        final preview = m['preview_url'];
-                        final isLast = entry.key == media.length - 1;
-
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: isLast
-                                  ? Radius.circular(16)
-                                  : Radius.zero,
-                              bottomRight: isLast
-                                  ? Radius.circular(16)
-                                  : Radius.zero,
-                            ),
-                            child: FediverseImage(
-                              url: preview ?? url,
-                              width: double.infinity,
-                              height: 280,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    child: PostMedia(
+                      media: media,
+                      sensitive: widget.post['sensitive'] ?? false,
                     ),
                   ),
 
@@ -279,7 +242,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                             ? Icons.repeat_one_rounded
                             : Icons.repeat_rounded,
                         onTap: () {},
-                        color: Colors.green,
+                        color: Colors.grey,
                       ),
                       ActionButton(
                         icon: widget.post['favourited']
@@ -307,7 +270,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                           }
                         },
 
-                        color: Colors.red,
+                        color: Colors.yellow,
                       ),
                       ActionButton(
                         icon: Icons.share,
