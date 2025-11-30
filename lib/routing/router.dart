@@ -9,7 +9,9 @@ import 'package:mobileapp/ui/profile/widgets/profile_screen.dart';
 import 'package:mobileapp/ui/instance/widgets/ChoosingInstance.dart';
 import 'package:mobileapp/ui/instance/widgets/InstanceAuthPage.dart';
 import 'package:mobileapp/ui/search/widgets/search_screen.dart';
-import 'package:mobileapp/ui/settings/widgets/algorithm.dart';
+import 'package:mobileapp/ui/settings/widgets/about.dart';
+import 'package:mobileapp/ui/settings/widgets/node_info.dart';
+import 'package:mobileapp/ui/settings/widgets/timeline.dart';
 import 'package:mobileapp/ui/settings/widgets/settings_screen.dart';
 import 'package:mobileapp/ui/splash/splash_screen.dart';
 import 'package:mobileapp/ui/tags/TagPostsScreen.dart';
@@ -49,8 +51,16 @@ final router = GoRouter(
       builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
-      path: Routes.algorithm,
-      builder: (context, state) => const AlgorithmScreen(),
+      path: Routes.timeline,
+      builder: (context, state) => const TimelineSettings(),
+    ),
+    GoRoute(
+      path: Routes.nodeInfo,
+      builder: (context, state) => const NodeInfo(),
+    ),
+    GoRoute(
+      path: Routes.aboutApp,
+      builder: (context, state) => const AboutApp(),
     ),
     GoRoute(
       path: Routes.viewImages,
@@ -58,6 +68,17 @@ final router = GoRouter(
         final extra = state.extra as String;
 
         return FullScreenImageViewer(url: extra.toString());
+      },
+    ),
+     GoRoute(
+      path: Routes.viewPost,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+
+        final post = extra["post"] as Map<String, dynamic>;
+        final account = extra["account"] as Map<String, dynamic>;
+        final timeAgo = extra["timeAgo"] as String;
+        return ViewpostScreen(post: post, account: account, timeAgo: timeAgo);
       },
     ),
 
@@ -69,7 +90,7 @@ final router = GoRouter(
           backgroundColor: Color.fromRGBO(255, 117, 31, 1),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _calculateIndex(state.uri.toString()),
-            onTap: (index) {
+            onTap: (index) async {
               switch (index) {
                 case 0:
                   context.go(Routes.home);
@@ -83,7 +104,9 @@ final router = GoRouter(
                   ); // belum kamu definisikan di sini
                   break;
                 case 3:
-                  context.go(Routes.profile);
+                  final userId = await CredentialsRepository.getCurrentUserId();
+                  // ignore: use_build_context_synchronously
+                  context.go(Routes.profile, extra: userId);
                   break;
               }
             },
@@ -124,21 +147,7 @@ final router = GoRouter(
           path: Routes.home,
           builder: (context, state) => const HomeScreen(),
         ),
-        GoRoute(
-          path: Routes.viewPost,
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>;
-
-            final post = extra["post"] as Map<String, dynamic>;
-            final account = extra["account"] as Map<String, dynamic>;
-            final timeAgo = extra["timeAgo"] as String;
-            return ViewpostScreen(
-              post: post,
-              account: account,
-              timeAgo: timeAgo,
-            );
-          },
-        ),
+       
         GoRoute(
           path: Routes.search,
           builder: (context, state) => const SearchScreen(),

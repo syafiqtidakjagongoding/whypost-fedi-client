@@ -14,28 +14,5 @@ final selectedUserProvider = FutureProvider.family<Map<String, dynamic>?, String
 ) async {
   final cred = await CredentialsRepository.loadCredentials();
 
-  if (identifier.startsWith("@")) {
-    final clean = identifier.startsWith("@")
-        ? identifier.substring(1)
-        : identifier;
-
-    // Split ke username dan host
-    final parts = clean.split('@');
-
-    if (parts.length >= 2) {
-      final username = parts[0];
-      final host =
-          "https://${parts.sublist(1).join('@')}"; // kalau host ada @ di dalam
-      print('Username: $username');
-      print('Host: $host');
-      if (host == cred.instanceUrl!) {
-        return fetchUserByAcct("@$username", host, cred.accToken!);
-      }
-    } else {
-      // fallback / error
-      print('Invalid identifier: $identifier');
-    }
-  }
-
   return fetchUserById(identifier, cred.instanceUrl!, cred.accToken!);
 });

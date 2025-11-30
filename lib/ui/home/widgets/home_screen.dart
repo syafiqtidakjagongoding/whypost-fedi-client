@@ -48,13 +48,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final timeline = ref.watch(homeTimelineProvider);
 
-    ref.listen(currentUserProvider, (previous, next) {
-      next.whenData((user) async {
-        if (user != null) {
-          await CredentialsRepository.setCurrentUserId(user['id']);
-        }
-      });
-    });
     return Scaffold(
       appBar: AppBar(
         title: const Text('For you'),
@@ -97,16 +90,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // ==== Menu list ====
             ListTile(
               leading: const Icon(Icons.home),
-              title: const Text("Profile"),
+              title: const Text("Timeline"),
               onTap: () {
-                context.push(Routes.profile);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text("Algorithm"),
-              onTap: () {
-                context.push(Routes.algorithm);
+                context.push(Routes.timeline);
               },
             ),
             ListTile(
@@ -138,11 +124,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         content: const Text("Apakah kamu yakin ingin logout?"),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(context, false),
+                            onPressed: () => context.pop(),
                             child: const Text("Cancel"),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pop(context, true),
+                            onPressed: () => context.pop(),
                             child: const Text("OK"),
                           ),
                         ],
@@ -152,12 +138,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   if (confirm == true) {
                     // TAMBAHKAN INI - Invalidate semua provider terkait
-                    final cred =
-                        await CredentialsRepository.loadAllCredentials();
-                    await CredentialsRepository.clearAll();
+
+                    CredentialsRepository.clearAll();
                     ref.invalidate(homeTimelineProvider);
                     ref.invalidate(currentUserProvider);
-                    ref.invalidate(selectedUserProvider(cred.currentUserId!));
                     ref.invalidate(favouritedTimelineProvider);
                     ref.invalidate(bookmarkedTimelineProvider);
                     ref.invalidate(trendingLinksProvider);
@@ -175,82 +159,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
 
-      body: RefreshIndicator(
-        onRefresh: () async {
-          final user = await ref.read(currentUserProvider).value;
-          ref.invalidate(homeTimelineProvider);
-          ref.invalidate(favouritedTimelineProvider);
-          ref.invalidate(bookmarkedTimelineProvider);
-          if (user != null) {
-            ref.invalidate(statusesTimelineProvider(user['id']));
-          }
-          ref.invalidate(postStateProvider);
-        },
-        child: timeline.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+      body: Stack(
+        children: [
+          // Background image
+          // Positioned.fill(
+          // child: Image.network(
+          //   'https://m.media-amazon.com/images/I/8176qiSGiqL._AC_UF1000,1000_QL80_.jpg',
+          //   fit: BoxFit.cover,
+          //   loadingBuilder: (context, child, loadingProgress) {
+          //     if (loadingProgress == null) return child;
+          //     return const Center(child: CircularProgressIndicator());
+          //   },
+          //   errorBuilder: (context, error, stackTrace) {
+          //     return Container(
+          //       color: Colors.grey,
+          //       child: const Center(child: Icon(Icons.error)),
+          //     );
+          //   },
+          // ),
+          // ),
 
-          error: (e, _) {
-            // Return widget untuk ditampilkan sementara
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text("Error $e"),
-                ],
-              ),
-            );
-          },
-          data: (posts) {
-            if (posts.isEmpty) {
-              return const Center(child: Text('No posts available'));
-            }
-            return ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: posts.length,
-              itemBuilder: (context, i) {
-                final post = posts[i];
+          // Konten utama dengan RefreshIndicator
+          RefreshIndicator(
+            onRefresh: () async {
+              final user = await ref.read(currentUserProvider).value;
+              ref.invalidate(homeTimelineProvider);
+              ref.invalidate(favouritedTimelineProvider);
+              ref.invalidate(bookmarkedTimelineProvider);
+              if (user != null) {
+                ref.invalidate(statusesTimelineProvider(user['id']));
+              }
+              ref.invalidate(postStateProvider);
+            },
+            child: timeline.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
 
-                // Check apakah post ini reblog
-                final isReblog = post['reblog'] != null;
-
-                // Jika reblog, ambil konten post asli
-                final displayPost = isReblog
-                    ? post['reblog'] as Map<String, dynamic>
-                    : post;
-
-                // Akun yang menampilkan post ini
-                final displayAccount = isReblog
-                    ? post['reblog']['account']
-                    : post['account'];
-
-                final createdAt = displayPost['created_at'];
-                final timeAgo = createdAt != null
-                    ? timeago.format(DateTime.parse(createdAt))
-                    : '';
-
-                return PostCard(
-                  post: displayPost, // konten asli jika reblog
-                  account: displayAccount, // user yang me-reblog / posting asli
-                  timeAgo: timeAgo,
-                  isReblog: isReblog, // optional flag
-                  rebloggedBy: isReblog
-                      ? post['account']
-                      : null, // user yang me-reblog
+              error: (e, _) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text("Error $e"),
+                    ],
+                  ),
                 );
               },
-            );
-          },
-        ),
+              data: (posts) {
+                if (posts.isEmpty) {
+                  return const Center(child: Text('No posts available'));
+                }
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: posts.length,
+                  itemBuilder: (context, i) {
+                    final post = posts[i];
+                    final isReblog = post['reblog'] != null;
+                    final displayPost = isReblog ? post['reblog'] : post;
+                    final displayAccount = isReblog
+                        ? post['reblog']['account']
+                        : post['account'];
+                    final createdAt = displayPost['created_at'];
+                    final timeAgo = createdAt != null
+                        ? timeago.format(DateTime.parse(createdAt))
+                        : '';
+                    return PostCard(
+                      post: displayPost,
+                      account: displayAccount,
+                      timeAgo: timeAgo,
+                      isReblog: isReblog,
+                      rebloggedBy: isReblog ? post['account'] : null,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          context.go(Routes.addPost);
-        },
-        child: const Icon(Icons.add),
+        backgroundColor: Color.fromRGBO(255, 117, 31, 1),
+        onPressed: () => context.go(Routes.addPost),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }

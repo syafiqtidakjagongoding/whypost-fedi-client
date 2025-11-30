@@ -54,6 +54,7 @@ class CredentialsRepository {
 
   static Future<void> setCurrentUserId(String userId) async {
     final prefs = await SharedPreferences.getInstance();
+   
     await prefs.setString("current_user_id", userId);
   }
 
@@ -119,6 +120,5 @@ class CredentialsRepository {
     );
 
     await prefs.clear();
-    await prefs.reload();
   }
 }

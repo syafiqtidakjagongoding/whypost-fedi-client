@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/state/relationship.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/ui/posts/post_card.dart';
+import 'package:mobileapp/ui/profile/widgets/user_info.dart';
+import 'package:mobileapp/ui/utils/ActionButton.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:mobileapp/state/user.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,30 +23,41 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  String? finalIdentifier = "";
+  String? currentUserId;
+  bool? isFollowing;
+  bool? isRequested;
   @override
   void initState() {
     super.initState();
-    checkUser();
+    loaded();
   }
 
-  Future<void> checkUser() async {
-    if (widget.identifier == null || widget.identifier == "") {
-      final cred = await CredentialsRepository.loadAllCredentials();
-      setState(() {
-        finalIdentifier = cred.currentUserId;
-      });
-    } else {
-      finalIdentifier = widget.identifier;
+  Future<void> loaded() async {
+    final userId = await CredentialsRepository.getCurrentUserId();
+    final rel = await ref.read(relationshipProvider(widget.identifier!).future);
+
+    setState(() {
+      currentUserId = userId;
+      isFollowing = rel?['following'];
+      isRequested = rel?['requested'];
+    });
+    print("current $currentUserId");
+  }
+
+  String formatNumber(int number) {
+    if (number >= 1000000000) {
+      return "${(number / 1000000000).toStringAsFixed(1)}B";
+    } else if (number >= 1000000) {
+      return "${(number / 1000000).toStringAsFixed(1)}M";
+    } else if (number >= 1000) {
+      return "${(number / 1000).toStringAsFixed(1)}k";
     }
+    return number.toString();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (finalIdentifier == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final userAsync = ref.watch(selectedUserProvider(finalIdentifier!));
+    final userAsync = ref.watch(selectedUserProvider(widget.identifier!));
 
     return Scaffold(
       body: userAsync.when(
@@ -53,23 +67,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           final userId = user!['id'];
           // Watch timeline AFTER user successfully loaded
           final statusesAsync = ref.watch(statusesTimelineProvider(userId));
-          final favouritedAsync = widget.identifier == null
+          final favouritedAsync = widget.identifier == currentUserId
               ? ref.watch(favouritedTimelineProvider)
               : AsyncValue.data([]);
-          final bookmarkedAsync = widget.identifier == null
+          final bookmarkedAsync = widget.identifier == currentUserId
               ? ref.watch(bookmarkedTimelineProvider)
               : AsyncValue.data([]);
           final statusesOnlyMediaAsync = ref.watch(
             statusesOnlyMediaTimelineProvider(userId),
           );
+
           return DefaultTabController(
-            length: widget.identifier == null ? 4 : 3,
+            length: widget.identifier == currentUserId ? 4 : 3,
             child: RefreshIndicator(
               onRefresh: () async {
-                // invalidate semua provider timeline
-                ref.invalidate(statusesTimelineProvider);
-                ref.invalidate(favouritedTimelineProvider);
-                ref.invalidate(bookmarkedTimelineProvider);
+                ref.invalidate(selectedUserProvider(widget.identifier!));
               },
 
               child: NestedScrollView(
@@ -154,17 +166,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text(
-                                              user['display_name'] == ""
-                                                  ? user['username']
-                                                  : user['display_name'],
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                              maxLines: 1,
-                                            ),
+                                            displayTitleWithEmoji(user),
                                             const SizedBox(height: 4),
                                             GestureDetector(
                                               onTap: () async {
@@ -197,7 +199,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "Followers ${user['followers_count']}",
+                                                  "Followers ${formatNumber(user['followers_count'])}",
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontWeight: FontWeight.bold,
@@ -205,7 +207,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Text(
-                                                  "Followings ${user['following_count']}",
+                                                  "Followings ${formatNumber(user['following_count'])}",
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontWeight: FontWeight.bold,
@@ -213,6 +215,91 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                 ),
                                               ],
                                             ),
+                                            if (widget.identifier !=
+                                                currentUserId)
+                                              ElevatedButton(
+                                              onPressed: () async {
+                                                  if (isFollowing == true) {
+                                                    // Unfollow
+                                                    try {
+                                                      final res = await ref.read(
+                                                        unfollowUserProvider(
+                                                          widget.identifier!,
+                                                        ).future,
+                                                      );
+                                                      print(res);
+                                                      setState(() {
+                                                       isFollowing =
+                                                            res?['following'] ??
+                                                            false;
+                                                        isRequested =
+                                                            res?['requested'] ??
+                                                            false;
+                                                      });
+                                                    } catch (e) {
+                                                      print(
+                                                        "Failed to unfollow: $e",
+                                                      );
+                                                    }
+                                                  } else {
+                                                    // Follow
+                                                    try {
+                                                      final res = await ref
+                                                          .read(
+                                                            followUserProvider(
+                                                              widget
+                                                                  .identifier!,
+                                                            ).future,
+                                                          );
+                                                      print(res);
+                                                      setState(() {
+                                                        isFollowing =
+                                                            res?['following'] ??
+                                                            false;
+                                                        isRequested =
+                                                            res?['requested'] ??
+                                                            false;
+                                                      });
+                                                    } catch (e) {
+                                                      print(
+                                                        "Failed to follow: $e",
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      isFollowing == true
+                                                      ? Colors.green
+                                                      : isRequested == true
+                                                      ? Colors.orange
+                                                      : Colors.blue,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 20,
+                                                        vertical: 5,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ), // tidak terlalu bulat
+                                                  ),
+                                                  elevation: 0, // biar clean
+                                                ),
+                                                child: Text(
+                                                  isFollowing == true
+                                                      ? "Followed"
+                                                      : isRequested == true
+                                                      ? "Requested"
+                                                      : "Follow",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ),
@@ -223,136 +310,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
 
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // ===== USER NOTE (HTML BIO) =====
-                                Html(
-                                  data: user['note'] ?? "",
-                                  onLinkTap: (url, attributes, element) {
-                                    final uri = Uri.parse(
-                                      url!.startsWith("http")
-                                          ? url
-                                          : "https://$url",
-                                    );
-                                    launchUrl(
-                                      uri,
-                                      mode: LaunchMode.externalApplication,
-                                    );
-                                  },
-                                  style: {
-                                    "body": Style(
-                                      color: Colors.black,
-                                      fontSize: FontSize(15),
-                                      margin: Margins.zero,
-                                      padding: HtmlPaddings.zero,
-                                      lineHeight: LineHeight(1.5),
-                                    ),
-                                    "p": Style(
-                                      margin: Margins.only(bottom: 8),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    "a": Style(
-                                      color: const Color(0xFFFF751F),
-                                      textDecoration: TextDecoration.none,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  },
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // ===== FOLLOW BUTTON =====
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 44,
-                                  child: ElevatedButton(
-                                    onPressed: () async {
-                                      final isFollowing =
-                                          user['following'] as bool;
-
-                                      final credential =
-                                          await CredentialsRepository.loadCredentials();
-                                      if (credential.accToken == null ||
-                                          credential.instanceUrl == null) {
-                                        context.go(Routes.instance);
-                                        return;
-                                      }
-
-                                      if (isFollowing) {
-                                        await unfollowUser(
-                                          instanceUrl: credential.instanceUrl!,
-                                          token: credential.accToken!,
-                                          userId: user['id'],
-                                        );
-                                      } else {
-                                        await followUser(
-                                          instanceUrl: credential.instanceUrl!,
-                                          token: credential.accToken!,
-                                          userId: user['id'],
-                                        );
-                                      }
-
-                                      setState(
-                                        () => user['following'] = !isFollowing,
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: user['following'] == true
-                                          ? Colors.grey[800]
-                                          : Colors.blue,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      elevation: 0,
-                                    ),
-                                    child: Text(
-                                      user['following'] == true
-                                          ? "Following"
-                                          : "Follow",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
                           // ===== TAB BAR =====
                           TabBar(
-                            indicatorColor: Colors.black,
-                            labelColor: Colors.black,
+                            indicatorColor: Color.fromRGBO(255, 117, 31, 1),
+                            labelColor: Color.fromRGBO(255, 117, 31, 1),
                             unselectedLabelColor: Colors.grey,
                             tabs: [
+                              Tab(text: "Statuses"),
                               Tab(
-                                text: widget.identifier == null
-                                    ? "Your posts"
-                                    : "Posts",
+                                text: widget.identifier == currentUserId
+                                    ? "Favourites"
+                                    : "Media",
                               ),
-                              Tab(text: widget.identifier == null ? "Likes" : "Media"),
                               Tab(
-                                text: widget.identifier == null
-                                    ? "Saved post"
+                                text: widget.identifier == currentUserId
+                                    ? "Saved"
                                     : "About",
                               ),
-                              if (widget.identifier == null) Tab(text: "About"),
+                              if (widget.identifier == currentUserId)
+                                Tab(text: "About"),
                             ],
                           ),
                         ],
@@ -414,7 +390,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
 
                     // ==== TAB 2: FAVOURITES ====
-                    if (widget.identifier == null)
+                    if (widget.identifier == currentUserId)
                       favouritedAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -465,7 +441,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         },
                       ),
 
-                    if (widget.identifier != null)
+                    if (widget.identifier != currentUserId)
                       statusesOnlyMediaAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -515,7 +491,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
 
                     // ==== TAB 3: BOOKMARKS ====
-                    if (widget.identifier == null)
+                    if (widget.identifier == currentUserId)
                       bookmarkedAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -566,26 +542,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         },
                       ),
 
-                    if (widget.identifier != null)
+                    if (widget.identifier != currentUserId)
                       userAsync.when(
                         data: (user) {
                           if (user!.isEmpty) {
                             return Text("User error");
                           }
-                          return Text(user['acct']);
+                          return UserInfoTextCard(account: user);
                         },
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
                         error: (e, _) => Center(child: Text("Error: $e")),
                       ),
 
-                    if (widget.identifier == null)
+                    if (widget.identifier == currentUserId)
                       userAsync.when(
                         data: (user) {
                           if (user!.isEmpty) {
                             return Text("User error");
                           }
-                          return Text(user['acct']);
+                          return UserInfoTextCard(account: user);
                         },
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
@@ -599,9 +575,64 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Color.fromRGBO(255, 117, 31, 1),
         onPressed: () => context.go(Routes.addPost),
-        child: Icon(Icons.add),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
+}
+
+Widget displayTitleWithEmoji(Map<String, dynamic> account) {
+  final displayName = account['display_name'] == ""
+      ? account['username']
+      : account['display_name'];
+  final emojis = account['emojis'] as List<dynamic>? ?? [];
+
+  final regex = RegExp(r':([a-zA-Z0-9_]+):');
+
+  List<InlineSpan> children = [];
+
+  displayName.splitMapJoin(
+    regex,
+    onMatch: (m) {
+      final shortcode = m.group(1);
+
+      final emoji = emojis.firstWhere(
+        (e) => e['shortcode'] == shortcode,
+        orElse: () => null,
+      );
+
+      if (emoji != null) {
+        children.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Image.network(emoji['url'], width: 20, height: 20),
+          ),
+        );
+      } else {
+        children.add(
+          TextSpan(text: m.group(0)),
+        ); // kalau nggak ketemu shortcode
+      }
+
+      return ''; // return value tidak dipakai
+    },
+    onNonMatch: (text) {
+      children.add(TextSpan(text: text));
+      return '';
+    },
+  );
+
+  return RichText(
+    maxLines: 1,
+    text: TextSpan(
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+      ),
+      children: children,
+    ),
+  );
 }

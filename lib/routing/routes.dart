@@ -12,5 +12,8 @@ abstract final class Routes {
   static const viewVideo = "/video";
   static const viewImages = "/images";
   static const settings = "/settings";
-  static const algorithm = "/algorithm";
+  static const timeline = "/timeline";
+  static const aboutApp = "/about";
+  static const nodeInfo = "/nodeinfo";
+
 }

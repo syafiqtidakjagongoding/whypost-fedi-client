@@ -24,9 +24,8 @@ Future<Map<String, dynamic>?> fetchUserByAcct(
   String token,
 ) async {
   final url = Uri.parse(
-    'https://$instanceUrl/api/v1/accounts/lookup',
+    '$instanceUrl/api/v1/accounts/lookup',
   ).replace(queryParameters: {'acct': acct}); // <-- query param
-  print("prin $url");
   final res = await http.get(url, headers: {"Authorization": "Bearer $token"});
 
   if (res.statusCode == 200) {
@@ -59,7 +58,7 @@ Future<Map<String, dynamic>?> followUser({
   required String token,
   required String userId,
   bool reblogs = true,
-  bool notify = false,
+  bool notify = true,
 }) async {
   final url = Uri.parse('$instanceUrl/api/v1/accounts/$userId/follow');
 

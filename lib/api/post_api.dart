@@ -10,13 +10,13 @@ Future<List<dynamic>> fetchHomeTimeline(
   String accessToken,
   int limit,
   String? maxId,
-  String? sinceId
+  String? sinceId,
 ) async {
   final uri = Uri.parse("$baseUrl/api/v1/timelines/public").replace(
     queryParameters: {
       'limit': limit.toString(), // misal limit = 20
       'max_id': maxId,
-      'since_id': sinceId
+      'since_id': sinceId,
     },
   );
 
@@ -32,10 +32,8 @@ Future<List<dynamic>> fetchHomeTimeline(
     throw Exception("Failed to load home timeline: ${res.body}");
   }
 
-
   return jsonDecode(res.body);
 }
-
 
 Future<List<dynamic>> fetchTagTimeline(
   String baseUrl,
@@ -43,13 +41,13 @@ Future<List<dynamic>> fetchTagTimeline(
   String tag,
   int limit,
   String? maxId,
-  String? sinceId
+  String? sinceId,
 ) async {
   final uri = Uri.parse("$baseUrl/api/v1/timelines/tag/$tag").replace(
     queryParameters: {
       'limit': limit.toString(), // misal limit = 20
       'max_id': maxId,
-      'since_id': sinceId
+      'since_id': sinceId,
     },
   );
 
@@ -65,10 +63,8 @@ Future<List<dynamic>> fetchTagTimeline(
     throw Exception("Failed to load home timeline: ${res.body}");
   }
 
-
   return jsonDecode(res.body);
 }
-
 
 Future<List<dynamic>> fetchStatusesUserById(
   String baseUrl,
@@ -77,12 +73,9 @@ Future<List<dynamic>> fetchStatusesUserById(
   String? sinceId,
   String id,
 ) async {
-  final uri = Uri.parse("$baseUrl/api/v1/accounts/$id/statuses").replace(
-    queryParameters: {
-      'max_id': maxId,
-      'since_id': sinceId
-    },
-  );
+  final uri = Uri.parse(
+    "$baseUrl/api/v1/accounts/$id/statuses",
+  ).replace(queryParameters: {'max_id': maxId, 'since_id': sinceId});
 
   final res = await http.get(
     uri,
@@ -96,11 +89,8 @@ Future<List<dynamic>> fetchStatusesUserById(
     throw Exception("Failed to load home timeline: ${res.body}");
   }
 
-
   return jsonDecode(res.body);
 }
-
-
 
 Future<List<dynamic>> fetchStatusesUserByIdOnlyMedia(
   String baseUrl,
@@ -113,7 +103,7 @@ Future<List<dynamic>> fetchStatusesUserByIdOnlyMedia(
     queryParameters: {
       'max_id': maxId,
       'only_media': 'true',
-      'since_id': sinceId
+      'since_id': sinceId,
     },
   );
 
@@ -130,6 +120,27 @@ Future<List<dynamic>> fetchStatusesUserByIdOnlyMedia(
   }
 
   return jsonDecode(res.body);
+}
+Future<List<dynamic>> fetchCommentarByStatusId(
+  String baseUrl,
+  String accessToken,
+  String statusId,
+) async {
+  final uri = Uri.parse('$baseUrl/api/v1/statuses/$statusId/context');
+
+  final res = await http.get(
+    uri,
+    headers: {'Authorization': 'Bearer $accessToken'},
+  );
+
+  if (res.statusCode != 200) {
+    throw Exception("Failed to load comments: ${res.body}");
+  }
+
+  final data = jsonDecode(res.body);
+  final replies = data['descendants'] as List<dynamic>;
+
+  return replies;
 }
 
 
@@ -139,12 +150,9 @@ Future<List<dynamic>> fetchFavouritedUser(
   String? maxId,
   String? sinceId,
 ) async {
-  final uri = Uri.parse("$baseUrl/api/v1/favourites").replace(
-    queryParameters: {
-      'max_id': maxId,
-      'since_id': sinceId
-    },
-  );
+  final uri = Uri.parse(
+    "$baseUrl/api/v1/favourites",
+  ).replace(queryParameters: {'max_id': maxId, 'since_id': sinceId});
 
   final res = await http.get(
     uri,
@@ -155,13 +163,11 @@ Future<List<dynamic>> fetchFavouritedUser(
   );
 
   if (res.statusCode != 200) {
-    throw Exception("Failed to load home timeline: ${res.body}");
+    throw Exception("Failed to load favourite timeline: ${res.body}");
   }
-
 
   return jsonDecode(res.body);
 }
-
 
 Future<Map<String, dynamic>> favouritePost(
   String baseUrl,
@@ -229,7 +235,6 @@ Future<Map<String, dynamic>> bookmarkPost(
   return jsonDecode(res.body);
 }
 
-
 Future<Map<String, dynamic>> reblogPost(
   String baseUrl,
   String accessToken,
@@ -251,7 +256,6 @@ Future<Map<String, dynamic>> reblogPost(
   }
   return jsonDecode(res.body);
 }
-
 
 Future<Map<String, dynamic>> unreblogPost(
   String baseUrl,
@@ -298,20 +302,15 @@ Future<Map<String, dynamic>> unbookmarkPost(
   return jsonDecode(res.body);
 }
 
-
-
 Future<List<dynamic>> fetchBookmarkedUser(
   String baseUrl,
   String accessToken,
   String? maxId,
   String? sinceId,
 ) async {
-  final uri = Uri.parse("$baseUrl/api/v1/bookmarks").replace(
-    queryParameters: {
-      'max_id': maxId,
-      'since_id': sinceId
-    },
-  );
+  final uri = Uri.parse(
+    "$baseUrl/api/v1/bookmarks",
+  ).replace(queryParameters: {'max_id': maxId, 'since_id': sinceId});
 
   final res = await http.get(
     uri,
@@ -325,10 +324,8 @@ Future<List<dynamic>> fetchBookmarkedUser(
     throw Exception("Failed to load home timeline: ${res.body}");
   }
 
-
   return jsonDecode(res.body);
 }
-
 
 Future<void> createFediversePost({
   required String content,
@@ -384,17 +381,14 @@ Future<void> createFediversePost({
   }
 }
 
-
 Future<List<dynamic>> fetchTrendingPost(
   String baseUrl,
   String accessToken,
   String? maxId,
 ) async {
-  final uri = Uri.parse("$baseUrl/api/v1/trends/statuses").replace(
-    queryParameters: {
-      'max_id': maxId,
-    },
-  );
+  final uri = Uri.parse(
+    "$baseUrl/api/v1/trends/statuses",
+  ).replace(queryParameters: {'max_id': maxId});
 
   final res = await http.get(
     uri,
@@ -407,7 +401,6 @@ Future<List<dynamic>> fetchTrendingPost(
   if (res.statusCode != 200) {
     throw Exception("Failed to load home timeline: ${res.body}");
   }
-
 
   return jsonDecode(res.body);
 }

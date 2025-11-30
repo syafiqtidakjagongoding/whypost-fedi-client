@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobileapp/routing/routes.dart';
+import 'package:mobileapp/ui/utils/ExpandableHTML.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class EmojiText extends StatefulWidget {
+class Contentparsing extends StatefulWidget {
   final String content;
   final List emojis;
-  const EmojiText({super.key, required this.content, required this.emojis});
+  final List<dynamic> mentions;
+  const Contentparsing({
+    super.key,
+    required this.content,
+    required this.emojis,
+    required this.mentions,
+  });
 
   @override
-  State<EmojiText> createState() => _EmojiTextState();
+  State<Contentparsing> createState() => _ContentparsingState();
 }
 
-class _EmojiTextState extends State<EmojiText> {
+class _ContentparsingState extends State<Contentparsing> {
   late String htmlContent;
   Map<String, Style> htmlStyle = {
     "body": Style(
@@ -73,7 +81,7 @@ class _EmojiTextState extends State<EmojiText> {
   }
 
   @override
-  void didUpdateWidget(covariant EmojiText oldWidget) {
+  void didUpdateWidget(covariant Contentparsing oldWidget) {
     super.didUpdateWidget(oldWidget);
     // kalau content atau emojis berubah, reload emoji
     if (oldWidget.content != widget.content ||
@@ -89,31 +97,37 @@ class _EmojiTextState extends State<EmojiText> {
     dynamic element,
   ) async {
     final text = element?.text.trim() ?? url ?? '';
-
     if (text.isEmpty) return;
-    // Cek hashtag
+
     if (text.startsWith('#')) {
-      final tag = text.substring(1); // hapus #
-      context.push("/tags/$tag"); // navigasi ke halaman tag
+      final tag = text.substring(1);
+
+      print(text);
+      context.push("/tags/$tag");
       return;
     }
 
-    String host, acct;
-
     if (text.startsWith('@')) {
-      final username = text.substring(1); // hapus @
-      final href = attributes['href'].toString();
-      final uri = Uri.parse(href);
-      host = uri.host; // "flipboard.com"
-      print('Host: $host');
+      final username = text.startsWith('@') ? text.substring(1) : text;
+      final mentions = widget.mentions.cast<Map<String, dynamic>>();
+      final tryWithUsername = mentions.firstWhere(
+        (m) => m['username'] == username,
+        orElse: () => {},
+      );
 
-      final parts = username.split('@');
+      final tryWithAcct = mentions.firstWhere(
+        (m) => m['acct'] == username,
+        orElse: () => {},
+      );
 
-      acct = parts[0];
+      // Jika ada yang cocok, push sekali saja
+      final userToPush = tryWithUsername.isNotEmpty
+          ? tryWithUsername
+          : tryWithAcct;
 
-      final userLookup = "@$acct@$host";
-      print(userLookup);
-      // context.push(Routes.profile, extra: userLookup);
+      if (userToPush.isNotEmpty) {
+        context.push(Routes.profile, extra: userToPush["id"]);
+      }
 
       return;
     }
@@ -124,24 +138,10 @@ class _EmojiTextState extends State<EmojiText> {
 
   @override
   Widget build(BuildContext context) {
-    return htmlContent.contains('<img')
-        ? Html(
-            data: htmlContent,
-            onLinkTap: (url, attributes, element) async {
-              _action(url, attributes, element);
-            },
-            style: htmlStyle,
-          )
-        : Stack(
-            children: [
-              Html(
-                data: htmlContent,
-                onLinkTap: (url, attributes, element) async {
-                  _action(url, attributes, element);
-                },
-                style: htmlStyle,
-              ), // teks muncul dulu
-            ],
-          );
+    return ExpandableHtml(
+      html: htmlContent,
+      style: htmlStyle,
+      onLinkTap: _action,
+    );
   }
 }

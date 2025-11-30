@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,6 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onVerticalDragEnd: (_) => Navigator.pop(context),
         child: Stack(
           children: [
             Center(
@@ -55,7 +55,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
               right: 20,
               child: IconButton(
                 icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => context.pop(),
               ),
             ),
           ],

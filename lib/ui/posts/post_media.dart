@@ -75,7 +75,6 @@ class _PostMediaState extends State<PostMedia> {
                     }
 
                     return ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
                       child: widget.sensitive && !revealed
                           ? Stack(
                               children: [
@@ -120,7 +119,6 @@ class _PostMediaState extends State<PostMedia> {
                     ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
                       "Sensitive content – tap to reveal",

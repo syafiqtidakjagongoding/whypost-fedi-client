@@ -233,7 +233,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                               return InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
-                                  ref.invalidate(currentUserProvider);
                                   ref.invalidate(selectedUserProvider(id));
                                   context.push(Routes.profile, extra: id);
                                 },
@@ -381,7 +380,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         results.when(
                           loading: () =>
                               const Center(child: CircularProgressIndicator()),
-                          error: (e, st) => Center(child: Text("Error: $e")),
+                          error: (e, st) => Center(child: Text("Error: Failed to search")),
                           data: (data) {
                             final firstStatuses = (data["statuses"] is List)
                                 ? data["statuses"]
@@ -437,8 +436,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         trendingPost.when(
                           loading: () =>
                               const Center(child: CircularProgressIndicator()),
-                          error: (e, st) => Center(child: Text("Error: $e")),
+                          error: (e, st) => Center(child: Text("Error: Failed to load trending post")),
                           data: (posts) {
+
+                             if (posts.isEmpty) {
+                              return Center(
+                                child: Text("There are no trending post"),
+                              );
+                            }
                             return Column(
                               children: [
                                 ...posts.map((post) {
@@ -477,16 +482,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
 
-                      error: (e, st) => Center(child: Text("Error: $e")),
+                      error: (e, st) => Center(child: Text("Error: Failed to load trending tags")),
 
                       data: (list) {
                         return ListView.builder(
                           itemCount: list.length,
                           itemBuilder: (context, i) {
+                            if (list.isEmpty) {
+                              return Center(
+                                child: Text("Trending tags is empty"),
+                              );
+                            }
                             final tag = list[i];
                             final name = tag['name'] ?? '';
                             final history = tag['history'] as List? ?? [];
-
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -507,15 +516,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     results.when(
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (e, st) => Center(child: Text("Error: $e")),
+                      error: (e, st) => Center(child: Text("Error: Failed to load hashtags")),
                       data: (data) {
+                        if (data.isEmpty) {
+                          return const Center(child: Text("No hashtags found"));
+                        }
                         final tags = (data["hashtags"] is List)
                             ? data["hashtags"]
                             : <dynamic>[];
 
-                        if (tags.isEmpty) {
-                          return const Center(child: Text("No hashtags found"));
-                        }
 
                         return ListView.builder(
                           itemCount: tags.length,
@@ -547,11 +556,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     suggested.when(
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (e, st) => Center(child: Text("Error: $e")),
+                      error: (e, st) => Center(
+                        child: Text("Error: Failed to load suggested people"),
+                      ),
                       data: (list) => ListView.builder(
                         itemCount: list.length,
                         itemBuilder: (_, i) {
+                          if (list.isEmpty) {
+                            return Center(
+                              child: Text("No suggested people available."),
+                            );
+                          }
                           final item = list[i];
+
 
                           final avatar = item["avatar_static"] ?? "";
                           final displayName = item["display_name"] ?? "Unknown";
@@ -655,11 +672,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     results.when(
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (e, st) => Center(child: Text("Error: $e")),
+                      error: (e, st) => Center(child: Text("Error: Failed to find people")),
                       data: (data) {
+                        if (data.isEmpty) {
+                          return Center(child: Text("Couldn't find people"));
+                        }
                         final accounts = (data["accounts"] is List)
                             ? data["accounts"]
                             : <dynamic>[];
+
 
                         return ListView.builder(
                           itemCount: accounts.length,
@@ -762,11 +783,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                   trendingLinks.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Center(child: Text("Error: $e")),
+                    error: (e, st) => Center(child: Text("Error: Failed to load trending links")),
                     data: (list) => ListView.builder(
                       itemCount: list.length,
                       itemBuilder: (_, i) {
                         final link = list[i];
+                        if (list.isEmpty) {
+                          return Center(child: Text("Couldn't find trending links"));
+                        }
+
                         return ListTile(
                           title: Text(link["title"] ?? "Untitled"),
                           subtitle: Text(link["url"]),

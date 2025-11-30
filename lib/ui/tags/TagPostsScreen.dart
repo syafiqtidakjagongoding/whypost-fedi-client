@@ -110,13 +110,6 @@ class _TagpostsScreenState extends ConsumerState<TagpostsScreen> {
           },
         ),
       ),
-
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          context.go(Routes.addPost);
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

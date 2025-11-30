@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/auth_api.dart';
+import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/credentials.dart';
 import 'package:mobileapp/state/timeline.dart';
@@ -77,9 +78,11 @@ class _MyAppState extends ConsumerState<MyApp> {
 
           // SIMPAN hanya jika token valid
           await prefs.setString(_keyToken, accToken);
+          final user = await fetchCurrentUser(instanceUrl, accToken);
+          await CredentialsRepository.setCurrentUserId(user!['id']);
+
           ref.invalidate(homeTimelineProvider);
-          
-          debugPrint("✅ Token berhasil disimpan: $accToken");
+
           router.go(Routes.home);
         }
       } else {
