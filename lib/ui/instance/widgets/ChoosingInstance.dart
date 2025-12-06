@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:mobileapp/state/instance.dart';
 
 class ChooseInstancePage extends ConsumerStatefulWidget {

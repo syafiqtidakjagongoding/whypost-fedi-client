@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:mobileapp/api/explore_api.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 
 class SuggestedPeopleNotifier extends AsyncNotifier<List<dynamic>> {
   @override

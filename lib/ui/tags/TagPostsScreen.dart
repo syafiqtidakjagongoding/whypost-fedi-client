@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:mobileapp/ui/posts/post_card.dart';

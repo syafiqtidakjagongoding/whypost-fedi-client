@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:mobileapp/state/explore.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/state/trends.dart';
@@ -92,7 +92,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     final trendingTags = ref.watch(trendingTagsProvider);
     final trendingLinks = ref.watch(trendingLinksProvider);
     final suggested = ref.watch(suggestedPeopleProvider);
-    final trendingPost = ref.watch(trendingPostTimelineProvider);
+    final trendingPost = ref.watch(trendProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -191,25 +191,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                             ...tags.map((t) {
                               final history =
                                   t['history'] as List<dynamic>? ?? [];
-                              final totalUses = history.fold<int>(
-                                0,
-                                (sum, item) =>
-                                    sum +
-                                    int.tryParse(
-                                      item['uses']?.toString() ?? '0',
-                                    )!,
-                              );
+
+                              // Ambil uses hari ini → biasanya index=0
+                              final todayUses = history.isNotEmpty
+                                  ? int.tryParse(
+                                          history[0]['uses'].toString(),
+                                        ) ??
+                                        0
+                                  : 0;
+
                               return ListTile(
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 4,
                                 ),
-                                title: Text("#${t['name']}"),
-                                subtitle: Text("$totalUses posts"),
+                                title: Text(
+                                  "#${t['name']}",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  "$todayUses uses today",
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black54,
+                                  ),
+                                ),
                                 onTap: () {
-                                  context.push(
-                                    "/tags/${t['name']}",
-                                  ); // GoRouter
+                                  context.push("/tags/${t['name']}");
                                 },
                               );
                             }),
@@ -380,7 +391,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         results.when(
                           loading: () =>
                               const Center(child: CircularProgressIndicator()),
-                          error: (e, st) => Center(child: Text("Error: Failed to search")),
+                          error: (e, st) =>
+                              Center(child: Text("Error: Failed to search")),
                           data: (data) {
                             final firstStatuses = (data["statuses"] is List)
                                 ? data["statuses"]
@@ -436,10 +448,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         trendingPost.when(
                           loading: () =>
                               const Center(child: CircularProgressIndicator()),
-                          error: (e, st) => Center(child: Text("Error: Failed to load trending post")),
+                          error: (e, st) => Center(
+                            child: Text("Error: Failed to load trending post"),
+                          ),
                           data: (posts) {
-
-                             if (posts.isEmpty) {
+                            if (posts.isEmpty) {
                               return Center(
                                 child: Text("There are no trending post"),
                               );
@@ -482,7 +495,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
 
-                      error: (e, st) => Center(child: Text("Error: Failed to load trending tags")),
+                      error: (e, st) => Center(
+                        child: Text("Error: Failed to load trending tags"),
+                      ),
 
                       data: (list) {
                         return ListView.builder(
@@ -493,18 +508,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                                 child: Text("Trending tags is empty"),
                               );
                             }
-                            final tag = list[i];
-                            final name = tag['name'] ?? '';
-                            final history = tag['history'] as List? ?? [];
+                            final t = list[i];
+                            final history =
+                                t['history'] as List<dynamic>? ?? [];
+
+                            // Ambil uses hari ini → biasanya index=0
+                            final todayUses = history.isNotEmpty
+                                ? int.tryParse(history[0]['uses'].toString()) ??
+                                      0
+                                : 0;
+
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 4,
                               ),
-                              title: Text("#$name"),
-                              subtitle: Text("${history.length} days trending"),
+                              title: Text(
+                                "#${t['name']}",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "$todayUses uses today",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black54,
+                                ),
+                              ),
                               onTap: () {
-                                context.push("/tags/$name"); // GoRouter
+                                context.push("/tags/${t['name']}");
                               },
                             );
                           },
@@ -516,7 +550,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     results.when(
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (e, st) => Center(child: Text("Error: Failed to load hashtags")),
+                      error: (e, st) =>
+                          Center(child: Text("Error: Failed to load hashtags")),
                       data: (data) {
                         if (data.isEmpty) {
                           return const Center(child: Text("No hashtags found"));
@@ -525,24 +560,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                             ? data["hashtags"]
                             : <dynamic>[];
 
-
-                        return ListView.builder(
+                      return ListView.builder(
                           itemCount: tags.length,
-                          itemBuilder: (_, i) {
+                          itemBuilder: (context, i) {
+                            if (tags.isEmpty) {
+                              return Center(
+                                child: Text("Trending tags is empty"),
+                              );
+                            }
                             final t = tags[i];
                             final history =
                                 t['history'] as List<dynamic>? ?? [];
-                            final totalUses = history.fold<int>(
-                              0,
-                              (sum, item) =>
-                                  sum +
-                                  int.tryParse(
-                                    item['uses']?.toString() ?? '0',
-                                  )!,
-                            );
+
+                            // Ambil uses hari ini → biasanya index=0
+                            final todayUses = history.isNotEmpty
+                                ? int.tryParse(history[0]['uses'].toString()) ??
+                                      0
+                                : 0;
+
                             return ListTile(
-                              title: Text("#${t['name']}"),
-                              subtitle: Text("$totalUses uses"),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
+                              title: Text(
+                                "#${t['name']}",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "$todayUses uses today",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black54,
+                                ),
+                              ),
                               onTap: () {
                                 context.push("/tags/${t['name']}");
                               },
@@ -568,7 +622,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                             );
                           }
                           final item = list[i];
-
 
                           final avatar = item["avatar_static"] ?? "";
                           final displayName = item["display_name"] ?? "Unknown";
@@ -672,7 +725,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     results.when(
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (e, st) => Center(child: Text("Error: Failed to find people")),
+                      error: (e, st) =>
+                          Center(child: Text("Error: Failed to find people")),
                       data: (data) {
                         if (data.isEmpty) {
                           return Center(child: Text("Couldn't find people"));
@@ -680,7 +734,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         final accounts = (data["accounts"] is List)
                             ? data["accounts"]
                             : <dynamic>[];
-
 
                         return ListView.builder(
                           itemCount: accounts.length,
@@ -783,13 +836,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                   trendingLinks.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Center(child: Text("Error: Failed to load trending links")),
+                    error: (e, st) => Center(
+                      child: Text("Error: Failed to load trending links"),
+                    ),
                     data: (list) => ListView.builder(
                       itemCount: list.length,
                       itemBuilder: (_, i) {
                         final link = list[i];
                         if (list.isEmpty) {
-                          return Center(child: Text("Couldn't find trending links"));
+                          return Center(
+                            child: Text("Couldn't find trending links"),
+                          );
                         }
 
                         return ListTile(

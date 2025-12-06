@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:mobileapp/state/relationship.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/ui/posts/post_card.dart';
@@ -91,223 +91,252 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Column(
                         children: [
                           // ===== HEADER =====
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 200),
-                            child: Stack(
-                              children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 200,
-                                  child: Image.network(
-                                    user['header'],
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) {
-                                      return Container(color: Colors.grey[900]);
-                                    },
-                                  ),
-                                ),
+                          Stack(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Header Image
+                                  Stack(
+                                    children: [
+                                      Container(
+                                        width: double.infinity,
+                                        height: 150,
+                                        color: Colors.grey[300],
+                                        child: user['header'] != null
+                                            ? Image.network(
+                                                user['header'],
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) {
+                                                  return Container(
+                                                    color: Colors.grey[300],
+                                                  );
+                                                },
+                                              )
+                                            : null,
+                                      ),
 
-                                // FULL BLACK GRADIENT OVERLAY
-                                Container(
-                                  height: 200,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withOpacity(1),
+                                      // Back Button
+                                      if (widget.identifier != null)
+                                        Positioned(
+                                          top: 12,
+                                          left: 8,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.arrow_back),
+                                            onPressed: () => context.pop(),
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.black
+                                                  .withOpacity(0.6),
+                                              foregroundColor: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+
+                                  // Profile Info Section
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      0,
+                                      16,
+                                      16,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(
+                                          height: 60,
+                                        ), // Space for avatar
+                                        // Display Name
+                                        displayTitleWithEmoji(user),
+
+                                        const SizedBox(height: 2),
+
+                                        // Username
+                                        GestureDetector(
+                                          onTap: () async {
+                                            await launchUrl(
+                                              Uri.parse(user['url']),
+                                              mode: LaunchMode
+                                                  .externalApplication,
+                                            );
+                                          },
+                                          child: Text(
+                                            "@${user['acct']}",
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 12),
+
+                                        // Bio
+                                        if (user['note'] != null &&
+                                            user['note'].toString().isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: Html(
+                                              data: user['note'] ?? "",
+                                              style: {
+                                                "body": Style(
+                                                  margin: Margins.zero,
+                                                  padding: HtmlPaddings.zero,
+                                                  fontSize: FontSize(15),
+                                                  lineHeight: LineHeight.number(
+                                                    1.4,
+                                                  ),
+                                                  color: Colors.black87,
+                                                ),
+                                                "a": Style(
+                                                  color: Colors.blue,
+                                                  textDecoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                              },
+                                              onLinkTap: (url, _, __) async {
+                                                if (url != null) {
+                                                  await launchUrl(
+                                                    Uri.parse(url),
+                                                    mode: LaunchMode
+                                                        .externalApplication,
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ),
+
+                                        // Stats Row
+                                        Row(
+                                          children: [
+                                            _buildStatText(
+                                              '${formatNumber(user['following_count'])}',
+                                              'Following',
+                                            ),
+                                            const SizedBox(width: 20),
+                                            _buildStatText(
+                                              '${formatNumber(user['followers_count'])}',
+                                              'Followers',
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 16),
+
+                                        // Follow Button
+                                        if (widget.identifier != currentUserId)
+                                          SizedBox(
+                                            width: double.infinity,
+                                            height: 38,
+                                            child: OutlinedButton(
+                                              onPressed: () async {
+                                                if (isFollowing == true) {
+                                                  try {
+                                                    final res = await ref.read(
+                                                      unfollowUserProvider(
+                                                        widget.identifier!,
+                                                      ).future,
+                                                    );
+                                                    setState(() {
+                                                      isFollowing =
+                                                          res?['following'] ??
+                                                          false;
+                                                      isRequested =
+                                                          res?['requested'] ??
+                                                          false;
+                                                    });
+                                                  } catch (e) {
+                                                    print(
+                                                      "Failed to unfollow: $e",
+                                                    );
+                                                  }
+                                                } else {
+                                                  try {
+                                                    final res = await ref.read(
+                                                      followUserProvider(
+                                                        widget.identifier!,
+                                                      ).future,
+                                                    );
+                                                    setState(() {
+                                                      isFollowing =
+                                                          res?['following'] ??
+                                                          false;
+                                                      isRequested =
+                                                          res?['requested'] ??
+                                                          false;
+                                                    });
+                                                  } catch (e) {
+                                                    print(
+                                                      "Failed to follow: $e",
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              style: OutlinedButton.styleFrom(
+                                                backgroundColor:
+                                                    isFollowing == true
+                                                    ? Colors.transparent
+                                                    : Colors.black,
+                                                foregroundColor:
+                                                    isFollowing == true
+                                                    ? Colors.black
+                                                    : Colors.white,
+                                                side: BorderSide(
+                                                  color: isFollowing == true
+                                                      ? Colors.grey[400]!
+                                                      : Colors.black,
+                                                  width: 1,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                isFollowing == true
+                                                    ? "Following"
+                                                    : isRequested == true
+                                                    ? "Requested"
+                                                    : "Follow",
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
-                                ),
-                                if (widget.identifier != null)
-                                  Positioned(
-                                    top: 16,
-                                    left: 16,
-                                    child: Container(
-                                      child: IconButton(
-                                        icon: const Icon(
-                                          Icons.arrow_back,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed: () => context.pop(),
-                                      ),
+                                ],
+                              ),
+
+                              // Avatar positioned absolutely
+                              Positioned(
+                                top: 115, // Overlapping the header
+                                left: 16,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 4,
                                     ),
                                   ),
-                                Positioned(
-                                  bottom: 10,
-                                  left: 16,
-                                  right: 16,
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 3,
-                                          ),
-                                        ),
-                                        child: CircleAvatar(
-                                          radius: 38,
-                                          backgroundImage: NetworkImage(
-                                            user['avatar_static'] ?? "",
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            displayTitleWithEmoji(user),
-                                            const SizedBox(height: 4),
-                                            GestureDetector(
-                                              onTap: () async {
-                                                await launchUrl(
-                                                  Uri.parse(user['url']),
-                                                  mode: LaunchMode
-                                                      .externalApplication,
-                                                );
-                                              },
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Flexible(
-                                                    child: Text(
-                                                      "@${user['acct']}",
-                                                      style: TextStyle(
-                                                        color: Colors.grey[200],
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 5),
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  "Followers ${formatNumber(user['followers_count'])}",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  "Followings ${formatNumber(user['following_count'])}",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (widget.identifier !=
-                                                currentUserId)
-                                              ElevatedButton(
-                                              onPressed: () async {
-                                                  if (isFollowing == true) {
-                                                    // Unfollow
-                                                    try {
-                                                      final res = await ref.read(
-                                                        unfollowUserProvider(
-                                                          widget.identifier!,
-                                                        ).future,
-                                                      );
-                                                      print(res);
-                                                      setState(() {
-                                                       isFollowing =
-                                                            res?['following'] ??
-                                                            false;
-                                                        isRequested =
-                                                            res?['requested'] ??
-                                                            false;
-                                                      });
-                                                    } catch (e) {
-                                                      print(
-                                                        "Failed to unfollow: $e",
-                                                      );
-                                                    }
-                                                  } else {
-                                                    // Follow
-                                                    try {
-                                                      final res = await ref
-                                                          .read(
-                                                            followUserProvider(
-                                                              widget
-                                                                  .identifier!,
-                                                            ).future,
-                                                          );
-                                                      print(res);
-                                                      setState(() {
-                                                        isFollowing =
-                                                            res?['following'] ??
-                                                            false;
-                                                        isRequested =
-                                                            res?['requested'] ??
-                                                            false;
-                                                      });
-                                                    } catch (e) {
-                                                      print(
-                                                        "Failed to follow: $e",
-                                                      );
-                                                    }
-                                                  }
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      isFollowing == true
-                                                      ? Colors.green
-                                                      : isRequested == true
-                                                      ? Colors.orange
-                                                      : Colors.blue,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 20,
-                                                        vertical: 5,
-                                                      ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          6,
-                                                        ), // tidak terlalu bulat
-                                                  ),
-                                                  elevation: 0, // biar clean
-                                                ),
-                                                child: Text(
-                                                  isFollowing == true
-                                                      ? "Followed"
-                                                      : isRequested == true
-                                                      ? "Requested"
-                                                      : "Follow",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                  child: CircleAvatar(
+                                    radius: 35,
+                                    backgroundImage: NetworkImage(
+                                      user['avatar_static'] ?? "",
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
 
                           // ===== TAB BAR =====
@@ -628,11 +657,56 @@ Widget displayTitleWithEmoji(Map<String, dynamic> account) {
     maxLines: 1,
     text: TextSpan(
       style: const TextStyle(
-        color: Colors.white,
+        color: Colors.black,
         fontSize: 20,
         fontWeight: FontWeight.w800,
       ),
       children: children,
+    ),
+  );
+}
+
+Widget _buildStatItem(String label, String value) {
+  return Column(
+    children: [
+      Text(
+        value,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.grey[600],
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildStatText(String value, String label) {
+  return RichText(
+    text: TextSpan(
+      children: [
+        TextSpan(
+          text: value,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
+        ),
+        TextSpan(
+          text: ' $label',
+          style: TextStyle(color: Colors.grey[600], fontSize: 15),
+        ),
+      ],
     ),
   );
 }

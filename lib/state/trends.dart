@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/post_api.dart';
 import 'package:mobileapp/api/explore_api.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TrendingTagsNotifier extends AsyncNotifier<List<dynamic>> {

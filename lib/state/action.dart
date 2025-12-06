@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:mobileapp/api/post_api.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 
 
 final favoritePostActionProvider = FutureProvider.family((ref, String id) async {
@@ -77,3 +78,6 @@ final unbookmarkPostActionProvider = FutureProvider.family((ref, String id) asyn
 
   return result;
 });
+
+final bookmarkProvider = StateProvider<Map<String, bool>>((ref) => {});
+final favouriteProvider = StateProvider<Map<String, bool>>((ref) => {});

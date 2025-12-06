@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/user_api.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 
 final currentUserProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   final cred = await CredentialsRepository.loadCredentials();

@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobileapp/api/auth_api.dart';
 import 'package:mobileapp/api/user_api.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
+import 'package:mobileapp/sharedpreferences/timelinepicker.dart';
 import 'package:mobileapp/state/timeline.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'routing/router.dart';
@@ -80,6 +81,7 @@ class _MyAppState extends ConsumerState<MyApp> {
           await prefs.setString(_keyToken, accToken);
           final user = await fetchCurrentUser(instanceUrl, accToken);
           await CredentialsRepository.setCurrentUserId(user!['id']);
+          await TimelinePicker.saveTimeline("public");
 
           ref.invalidate(homeTimelineProvider);
 

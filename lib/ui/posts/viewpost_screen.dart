@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'package:mobileapp/api/post_api.dart';
 import 'package:mobileapp/state/comment.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
+import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/ui/posts/post_media.dart';
 import 'package:mobileapp/ui/utils/ContentParsing.dart';
 import 'package:mobileapp/ui/utils/commentList.dart';
@@ -14,20 +16,14 @@ import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/action.dart';
 import 'package:mobileapp/state/globalpost.dart';
 import 'package:mobileapp/ui/utils/FediverseImage.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobileapp/ui/utils/ActionButton.dart';
 
 class ViewpostScreen extends ConsumerStatefulWidget {
-  final Map<String, dynamic> post;
-  final Map<String, dynamic> account;
-  final String timeAgo;
+  final String postId;
 
-  const ViewpostScreen({
-    super.key,
-    required this.post,
-    required this.account,
-    required this.timeAgo,
-  });
+  const ViewpostScreen({super.key, required this.postId});
 
   @override
   ConsumerState<ViewpostScreen> createState() => _ViewpostScreenState();
@@ -35,6 +31,8 @@ class ViewpostScreen extends ConsumerStatefulWidget {
 
 class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
   String? currentUserId;
+  Map<String, dynamic>? post;
+  Map<String, dynamic>? account;
   List<Widget> buildPostMenu(bool isUserPost, bool isBookmarked) {
     final menu = <Widget>[];
 
@@ -64,48 +62,95 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
           color: Colors.deepPurple,
         ),
         title: Text(isBookmarked ? 'UnBookmark' : 'Bookmark Post'),
-        onTap: () {
+        onTap: () async {
+          Map<String, dynamic> result;
           if (isBookmarked) {
-            ref.read(unbookmarkPostActionProvider(widget.post['id']));
+            result = await ref.read(
+              unbookmarkPostActionProvider(widget.postId).future,
+            );
           } else {
-            ref.read(bookmarkPostActionProvider(widget.post['id']));
+            result = await ref.read(
+              bookmarkPostActionProvider(widget.postId).future,
+            );
           }
+          ref.read(bookmarkProvider.notifier).update((state) {
+            return {...state, widget.postId: result['bookmarked']};
+          });
+          ref.invalidate(bookmarkedTimelineProvider);
         },
       ),
     );
-
-    menu.add(
-      ListTile(
-        leading: const Icon(Icons.flag, color: Colors.orange),
-        title: const Text('Report'),
-        onTap: () {},
-      ),
-    );
-
     return menu;
   }
 
   @override
   void initState() {
     super.initState();
-    loadCred();
+    load();
   }
 
-  Future<void> loadCred() async {
+  Future<void> load() async {
     final cred = await CredentialsRepository.loadAllCredentials();
-    setState(() {
-      currentUserId = cred.currentUserId;
-    });
+    if (cred.accToken != null && cred.instanceUrl != null) {
+      final result = await fetchStatusDetail(
+        cred.instanceUrl!,
+        cred.accToken!,
+        widget.postId,
+      );
+      setState(() {
+        currentUserId = cred.currentUserId;
+        post = result;
+        account = result['account'];
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = widget.post['media_attachments'] as List<dynamic>? ?? [];
+    if (post == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final media = post!['media_attachments'] as List<dynamic>? ?? [];
+    final bookmarks = ref.watch(bookmarkProvider);
+    final favourite = ref.watch(favouriteProvider);
+    final isFavourite = favourite[widget.postId] ?? false;
+    final isBookmarked = bookmarks[widget.postId] ?? false;
+    final isReblog = post!['reblog'] != null;
+    final displayPost = isReblog ? post!['reblog'] : post;
+    final createdAt = displayPost['created_at'];
+    final timeAgo = createdAt != null
+        ? timeago.format(DateTime.parse(createdAt))
+        : '';
+    // Initialize favouriteProvider jika belum ada
+    if (!favourite.containsKey(widget.postId)) {
+      Future.microtask(() {
+        ref
+            .read(favouriteProvider.notifier)
+            .update(
+              (state) => {
+                ...state,
+                widget.postId: post!['favourited'] ?? false,
+              },
+            );
+      });
+    }
+    if (!bookmarks.containsKey(widget.postId)) {
+      Future.microtask(() {
+        ref
+            .read(bookmarkProvider.notifier)
+            .update(
+              (state) => {
+                ...state,
+                widget.postId: post!['bookmarked'] ?? false,
+              },
+            );
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Post from ${widget.account['username']}",
+          "Post from ${account!['username']}",
           style: TextStyle(
             color: Colors.white,
             fontSize: 23,
@@ -124,15 +169,13 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
               // 🧍 Header Post (Profile + Username + Waktu)
               InkWell(
                 onTap: () {
-                  context.push(Routes.profile, extra: widget.account['id']);
+                  context.push(Routes.profile, extra: account!['id']);
                 },
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CircleAvatar(
-                      backgroundImage: NetworkImage(
-                        widget.account['avatar_static'],
-                      ),
+                      backgroundImage: NetworkImage(account!['avatar_static']),
                       radius: 22,
                       backgroundColor: Colors.grey[200],
                     ),
@@ -143,11 +186,11 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                         children: [
                           Row(
                             children: [
-                              displayNameWithEmoji(widget.account),
+                              displayNameWithEmoji(account!),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  "@${widget.account['acct']}",
+                                  "@${account!['acct']}",
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
                                   style: const TextStyle(fontSize: 12),
@@ -162,9 +205,9 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: buildPostMenu(
-                                            widget.account['id'].toString() ==
+                                            account!['id'].toString() ==
                                                 currentUserId.toString(),
-                                            widget.post['bookmarked'],
+                                            isBookmarked,
                                           ),
                                         ),
                                       );
@@ -186,7 +229,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                             ],
                           ),
                           Text(
-                            widget.timeAgo,
+                            timeAgo,
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
@@ -204,9 +247,9 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Contentparsing(
-                  mentions: widget.post['mentions'],
-                  content: widget.post['content'],
-                  emojis: widget.post['emojis'],
+                  mentions: post!['mentions'],
+                  content: post!['content'],
+                  emojis: post!['emojis'],
                 ),
               ),
 
@@ -217,62 +260,72 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
                   padding: const EdgeInsets.only(top: 12),
                   child: PostMedia(
                     media: media,
-                    sensitive: widget.post['sensitive'] ?? false,
+                    sensitive: post!['sensitive'] ?? false,
                   ),
                 ),
 
               const SizedBox(height: 8),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    ActionButton(icon: CupertinoIcons.reply, onTap: () {}),
-                    ActionButton(
-                      icon: widget.post['reblogged']
-                          ? CupertinoIcons.repeat_1
-                          : CupertinoIcons.repeat,
-                      onTap: () {},
-                      color: Colors.grey,
-                    ),
-                    ActionButton(
-                      icon: widget.post['favourited']
-                          ? CupertinoIcons.star_slash_fill
-                          : CupertinoIcons.star_slash,
-                      onTap: () async {
-                        final id = widget.post['id'];
-                        final newValue = !widget.post['favourited'];
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  ActionButton(icon: CupertinoIcons.reply, onTap: () {}),
+                  ActionButton(
+                    icon: post!['reblogged']
+                        ? CupertinoIcons.repeat_1
+                        : CupertinoIcons.repeat,
+                    onTap: () {},
+                    color: Colors.grey,
+                  ),
+                  ActionButton(
+                    icon: isFavourite
+                        ? CupertinoIcons.star_slash_fill
+                        : CupertinoIcons.star_slash,
+                    onTap: () async {
+                      // Optimistic update
 
-                        // Optimistic update
+                      try {
+                        final postId = widget.postId;
 
-                        try {
-                          if (newValue) {
-                            await ref.read(
-                              favoritePostActionProvider(id).future,
-                            );
-                          } else {
-                            await ref.read(
-                              unfavoritePostActionProvider(id).future,
-                            );
-                          }
-                        } catch (e) {
-                          // rollback
-                          print(e);
+                        Map<String, dynamic> result;
+
+                        if (isFavourite) {
+                          // UNFAV
+                          result = await ref.read(
+                            unfavoritePostActionProvider(postId).future,
+                          );
+                        } else {
+                          // FAV
+                          result = await ref.read(
+                            favoritePostActionProvider(postId).future,
+                          );
                         }
-                      },
-                    ),
-                    ActionButton(
-                      icon: Icons.share,
-                      onTap: () async {
-                        // ignore: deprecated_member_use
-                        await SharePlus.instance.share(
-                          ShareParams(text: widget.post['url']),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+
+                        // Update favouriteProvider dari hasil API
+                        ref.read(favouriteProvider.notifier).update((state) {
+                          return {
+                            ...state,
+                            postId:
+                                result['favourited'], // <- TRUE / FALSE dari server
+                          };
+                        });
+                        ref.invalidate(favouritedTimelineProvider);
+                      } catch (e) {
+                        // rollback
+                        print(e);
+                      }
+                    },
+                  ),
+                  ActionButton(
+                    icon: Icons.share,
+                    onTap: () async {
+                      // ignore: deprecated_member_use
+                      await SharePlus.instance.share(
+                        ShareParams(text: post!['url']),
+                      );
+                    },
+                  ),
+                ],
               ),
 
               const Divider(
@@ -283,7 +336,7 @@ class _ViewpostScreenState extends ConsumerState<ViewpostScreen> {
               ),
 
               // 🗨️ Contoh Komentar (bisa diganti ListView.builder)
-              CommentListWidget(statusId: widget.post['id']),
+              CommentListWidget(statusId: widget.postId),
             ],
           ),
         ),

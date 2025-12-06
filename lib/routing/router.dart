@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:mobileapp/ui/posts/addpost_screen.dart';
 import 'package:mobileapp/ui/home/widgets/home_screen.dart';
 import 'package:mobileapp/ui/notifications/widgets/notifications_screen.dart';
@@ -70,15 +70,13 @@ final router = GoRouter(
         return FullScreenImageViewer(url: extra.toString());
       },
     ),
-     GoRoute(
+    GoRoute(
       path: Routes.viewPost,
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>;
 
-        final post = extra["post"] as Map<String, dynamic>;
-        final account = extra["account"] as Map<String, dynamic>;
-        final timeAgo = extra["timeAgo"] as String;
-        return ViewpostScreen(post: post, account: account, timeAgo: timeAgo);
+        final postId = extra["postId"] as String;
+        return ViewpostScreen(postId: postId);
       },
     ),
 
@@ -147,7 +145,7 @@ final router = GoRouter(
           path: Routes.home,
           builder: (context, state) => const HomeScreen(),
         ),
-       
+
         GoRoute(
           path: Routes.search,
           builder: (context, state) => const SearchScreen(),
@@ -166,8 +164,23 @@ final router = GoRouter(
         ),
         GoRoute(
           path: Routes.addPost,
-          builder: (context, state) => const AddPostWidget(),
+          pageBuilder: (context, state) {
+            final extra = (state.extra is Map<String, dynamic>)
+                ? state.extra as Map<String, dynamic>
+                : <String, dynamic>{};
+
+            return MaterialPage(
+              key: state.pageKey,
+              child: AddPostWidget(
+                replyContext: extra,
+                replyTo: extra['replyTo'],
+                mention: extra['mention'],
+                isReply: extra['isReply'] ?? false,
+              ),
+            );
+          },
         ),
+
         GoRoute(
           path: Routes.tagPosts,
           builder: (context, state) {

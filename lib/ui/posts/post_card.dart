@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/action.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:mobileapp/state/globalpost.dart';
+import 'package:mobileapp/state/timeline.dart';
 import 'package:mobileapp/ui/utils/ActionButton.dart';
 import 'package:mobileapp/ui/utils/ContentParsing.dart';
 import 'package:mobileapp/ui/utils/FediverseImage.dart';
@@ -66,23 +67,32 @@ class _PostCardState extends ConsumerState<PostCard> {
           color: Colors.deepPurple,
         ),
         title: Text(isBookmarked ? 'UnBookmark' : 'Bookmark Post'),
-        onTap: () {
+        onTap: () async {
+          Map<String, dynamic> result;
           if (isBookmarked) {
-            ref.read(unbookmarkPostActionProvider(widget.post['id']));
+            result = await ref.read(
+              unbookmarkPostActionProvider(widget.post['id']).future,
+            );
           } else {
-            ref.read(bookmarkPostActionProvider(widget.post['id']));
+            result = await ref.read(
+              bookmarkPostActionProvider(widget.post['id']).future,
+            );
           }
+          ref.read(bookmarkProvider.notifier).update((state) {
+            return {...state, widget.post['id']: result['bookmarked']};
+          });
+          ref.invalidate(bookmarkedTimelineProvider);
         },
       ),
     );
 
-    menu.add(
-      ListTile(
-        leading: const Icon(Icons.flag, color: Colors.orange),
-        title: const Text('Report'),
-        onTap: () {},
-      ),
-    );
+    // menu.add(
+    //   ListTile(
+    //     leading: const Icon(Icons.flag, color: Colors.orange),
+    //     title: const Text('Report'),
+    //     onTap: () {},
+    //   ),
+    // );
 
     return menu;
   }
@@ -103,11 +113,50 @@ class _PostCardState extends ConsumerState<PostCard> {
   @override
   Widget build(BuildContext context) {
     final media = widget.post['media_attachments'] as List<dynamic>? ?? [];
+    final bookmarks = ref.watch(bookmarkProvider);
+    final favourite = ref.watch(favouriteProvider);
+    final isBookmarked = bookmarks[widget.post['id']] ?? false;
+    final isFavourite = favourite[widget.post['id']] ?? false;
+    final postId = widget.post['id'];
+    final inReplyToId = widget.post['in_reply_to_id'];
+    final inReplyToAccountId = widget.post['in_reply_to_account_id'];
+
+    String? replyToUsername;
+    if (widget.post['mentions'] != null) {
+      for (final m in widget.post['mentions']) {
+        if (m['id'] == inReplyToAccountId) {
+          replyToUsername = m['acct'];
+          break;
+        }
+      }
+    }
+
+    // Initialize favouriteProvider jika belum ada
+    if (!favourite.containsKey(postId)) {
+      Future.microtask(() {
+        ref
+            .read(favouriteProvider.notifier)
+            .update(
+              (state) => {...state, postId: widget.post['favourited'] ?? false},
+            );
+      });
+    }
+
+    if (!bookmarks.containsKey(postId)) {
+      Future.microtask(() {
+        ref
+            .read(bookmarkProvider.notifier)
+            .update(
+              (state) => {...state, postId: widget.post['bookmarked'] ?? false},
+            );
+      });
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
 
       decoration: BoxDecoration(
-        color: Color.fromARGB(230, 255, 255, 255),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
@@ -152,6 +201,42 @@ class _PostCardState extends ConsumerState<PostCard> {
                             fontSize: 15,
                             color: Colors.grey[800],
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (inReplyToId != null)
+              InkWell(
+                onTap: () {
+                  context.push(Routes.viewPost, extra: {"postId": inReplyToId});
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.reply, color: Colors.orange, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          replyToUsername != null
+                              ? "Reply to @$replyToUsername"
+                              : "Reply to itself",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ],
@@ -258,7 +343,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                               children: buildPostMenu(
                                 widget.account['id'].toString() ==
                                     currentUserId.toString(),
-                                widget.post['bookmarked'],
+                                isBookmarked,
                               ),
                             ),
                           ),
@@ -273,14 +358,7 @@ class _PostCardState extends ConsumerState<PostCard> {
             // Content Section
             InkWell(
               onTap: () {
-                context.push(
-                  Routes.viewPost,
-                  extra: {
-                    "post": widget.post,
-                    "account": widget.account,
-                    "timeAgo": widget.timeAgo,
-                  },
-                );
+                context.push(Routes.viewPost, extra: {"postId": postId});
               },
               child: Column(
                 children: [
@@ -319,23 +397,36 @@ class _PostCardState extends ConsumerState<PostCard> {
                     onTap: () {},
                   ),
                   ActionButton(
-                    icon: widget.post['favourited']
+                    icon: isFavourite
                         ? CupertinoIcons.star_slash_fill
                         : CupertinoIcons.star_slash,
                     onTap: () async {
-                      final id = widget.post['id'];
-                      final newValue = !widget.post['favourited'];
-
-                      // Optimistic update
-
                       try {
-                        if (newValue) {
-                          await ref.read(favoritePostActionProvider(id).future);
+                        final postId = widget.post['id'];
+
+                        Map<String, dynamic> result;
+
+                        if (isFavourite) {
+                          // UNFAV
+                          result = await ref.read(
+                            unfavoritePostActionProvider(postId).future,
+                          );
                         } else {
-                          await ref.read(
-                            unfavoritePostActionProvider(id).future,
+                          // FAV
+                          result = await ref.read(
+                            favoritePostActionProvider(postId).future,
                           );
                         }
+
+                        // Update favouriteProvider dari hasil API
+                        ref.read(favouriteProvider.notifier).update((state) {
+                          return {
+                            ...state,
+                            postId:
+                                result['favourited'], // <- TRUE / FALSE dari server
+                          };
+                        });
+                        ref.invalidate(favouritedTimelineProvider);
                       } catch (e) {
                         // rollback
                         print(e);
@@ -360,35 +451,3 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 }
-
-
-//  ActionButton(
-//                     icon: mergedPost['bookmarked']
-//                         ? Icons.bookmark_rounded
-//                         : Icons.bookmark_border_rounded,
-//                     onTap: () async {
-//                       final id = mergedPost['id'];
-//                       final newValue = !mergedPost['bookmarked'];
-
-//                       // optimistic update
-//                       ref.read(postStateProvider.notifier).patch(id, {
-//                         'bookmarked': newValue,
-//                       });
-
-//                       try {
-//                         if (newValue) {
-//                           await ref.read(bookmarkPostActionProvider(id).future);
-//                         } else {
-//                           await ref.read(
-//                             unbookmarkPostActionProvider(id).future,
-//                           );
-//                         }
-//                       } catch (_) {
-//                         // rollback
-//                         ref.read(postStateProvider.notifier).patch(id, {
-//                           'bookmarked': !newValue,
-//                         });
-//                       }
-//                     },
-//                     color: Colors.black,
-//                   ),

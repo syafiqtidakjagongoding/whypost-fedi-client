@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:mobileapp/routing/routes.dart';
 import 'package:mobileapp/state/instance.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
 import 'package:mobileapp/ui/instance/widgets/RulesRenderer.dart';
 import 'package:mobileapp/ui/utils/InstanceLink.dart';
 import 'package:url_launcher/url_launcher.dart';

@@ -2,22 +2,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:mobileapp/api/post_api.dart';
-import 'package:mobileapp/state/credentials.dart';
+import 'package:mobileapp/sharedpreferences/credentials.dart';
+import 'package:mobileapp/sharedpreferences/timelinepicker.dart';
 import 'package:mobileapp/state/globalpost.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
+abstract class BaseTimelineNotifier extends AsyncNotifier<List<dynamic>> {
   String? maxId;
   String? lastSinceId;
-  bool hasMore = true;
+
+  /// Method yang akan diimplementasikan oleh child untuk fetch timeline spesifik
+  Future<List<dynamic>> fetchTimeline(
+    String instanceUrl,
+    String accToken, {
+    String? maxId,
+  });
 
   @override
   Future<List<dynamic>> build() async {
-    maxId = null; // reset
-    lastSinceId = null; // reset
-    hasMore = true; // reset
-    final cred = await CredentialsRepository.loadCredentials();
+    maxId = null;
+    lastSinceId = null;
 
+    final cred = await CredentialsRepository.loadCredentials();
     if (cred.accToken == null || cred.instanceUrl == null) {
       return [];
     }
@@ -27,41 +33,43 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
 
   Future<List<dynamic>> _loadInitial() async {
     final cred = await CredentialsRepository.loadCredentials();
-    if (cred.accToken == null || cred.instanceUrl == null) {
-      return []; // atau state = AsyncData([]) → aman
-    }
+    if (cred.accToken == null || cred.instanceUrl == null) return [];
 
-    final posts = await fetchHomeTimeline(
+    final posts = await fetchTimeline(
       cred.instanceUrl!,
       cred.accToken!,
-      10,
-      null,
-      null,
+      maxId: null,
     );
 
     if (posts.isNotEmpty) {
-      maxId = posts.last['id']; // cursor for pagination
+      maxId = posts.last['id'];
       lastSinceId = posts.first['id'];
     }
+
     return posts;
   }
 
   Future<void> loadMore() async {
     try {
       final cred = await CredentialsRepository.loadCredentials();
+      if (cred.accToken == null || cred.instanceUrl == null) {
+        state = AsyncData([]);
+        return;
+      }
 
-      final morePosts = await fetchHomeTimeline(
+      final posts = await fetchTimeline(
         cred.instanceUrl!,
         cred.accToken!,
-        10,
-        maxId,
-        null,
+        maxId: maxId,
       );
 
-      if (morePosts.isNotEmpty) {
-        maxId = morePosts.last['id'];
-
-        state = AsyncData([...state.value!, ...morePosts]);
+      final existingIds = state.value!.map((e) => e['id']).toSet();
+      final newPosts = posts
+          .where((p) => !existingIds.contains(p['id']))
+          .toList();
+      if (newPosts.isNotEmpty) {
+        maxId = (int.parse(newPosts.last['id']) - 1).toString();
+        state = AsyncData([...state.value ?? [], ...newPosts]);
       }
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -69,9 +77,123 @@ class HomeTimelineNotifier extends AsyncNotifier<List<dynamic>> {
   }
 }
 
+class HomeTimelineNotifier extends BaseTimelineNotifier {
+  @override
+  Future<List<dynamic>> fetchTimeline(
+    String instanceUrl,
+    String accToken, {
+    String? maxId,
+  }) {
+    return fetchHomeTimeline(instanceUrl, accToken, 10, maxId, null);
+  }
+}
+
+class TrendingTimelineNotifier extends AsyncNotifier<List<dynamic>> {
+  int offset = 0;
+  final int limit = 20;
+  bool isLoading = false;
+
+  @override
+  Future<List<dynamic>> build() async {
+    offset = 0;
+
+    final cred = await CredentialsRepository.loadCredentials();
+    if (cred.accToken == null || cred.instanceUrl == null) return [];
+
+    return await _loadInitial();
+  }
+
+  Future<List<dynamic>> _loadInitial() async {
+    offset = 0;
+    isLoading = false;
+
+    final cred = await CredentialsRepository.loadCredentials();
+
+    final posts = await fetchTrendingPost(
+      cred.instanceUrl!,
+      cred.accToken!,
+      limit,
+      offset,
+    );
+
+    // offset naik sesuai jumlah item
+    offset += posts.length;
+
+    return posts;
+  }
+
+  Future<void> loadMore() async {
+    if (isLoading) return; // cegah spam
+    isLoading = true;
+
+    final cred = await CredentialsRepository.loadCredentials();
+    if (cred.accToken == null || cred.instanceUrl == null) {
+      isLoading = false;
+      return;
+    }
+
+   final posts = await fetchTrendingPost(
+      cred.instanceUrl!,
+      cred.accToken!,
+      limit,
+      offset,
+    );
+
+    if (posts.isNotEmpty) {
+      offset += posts.length;
+
+      final existing = state.value ?? [];
+      final existingIds = existing.map((e) => e['id']).toSet();
+
+      final newPosts = posts
+          .where((p) => !existingIds.contains(p['id']))
+          .toList();
+
+      state = AsyncData([...existing, ...newPosts]);
+    }
+
+    isLoading = false;
+  }
+}
+
+class PublicFederatedTimelineNotifier extends BaseTimelineNotifier {
+  @override
+  Future<List<dynamic>> fetchTimeline(
+    String instanceUrl,
+    String accToken, {
+    String? maxId,
+  }) {
+    return fetchPublicFederatedTimeline(instanceUrl, accToken, 10, maxId, null);
+  }
+}
+
+class PublicLocalTimelineNotifier extends BaseTimelineNotifier {
+  @override
+  Future<List<dynamic>> fetchTimeline(
+    String instanceUrl,
+    String accToken, {
+    String? maxId,
+  }) {
+    return fetchPublicLocalTimeline(instanceUrl, accToken, 10, maxId, null);
+  }
+}
+
 final homeTimelineProvider =
     AsyncNotifierProvider<HomeTimelineNotifier, List<dynamic>>(
       () => HomeTimelineNotifier(),
+    );
+final publicFederatedProvider =
+    AsyncNotifierProvider<PublicFederatedTimelineNotifier, List<dynamic>>(
+      () => PublicFederatedTimelineNotifier(),
+    );
+final publicLocalProvider =
+    AsyncNotifierProvider<PublicLocalTimelineNotifier, List<dynamic>>(
+      () => PublicLocalTimelineNotifier(),
+    );
+
+final trendProvider =
+    AsyncNotifierProvider<TrendingTimelineNotifier, List<dynamic>>(
+      () => TrendingTimelineNotifier(),
     );
 
 final statusesTimelineProvider = FutureProvider.family<List<dynamic>, String>((
@@ -242,61 +364,5 @@ class TagTimelineNotifier extends StateNotifier<TagTimelineState> {
       hasMore: more.isNotEmpty,
       maxId: more.isNotEmpty ? more.last['id'] : state.maxId,
     );
-  }
-}
-
-final trendingPostTimelineProvider =
-    AsyncNotifierProvider<TrendingPostTimelineNotifier, List<dynamic>>(
-      TrendingPostTimelineNotifier.new,
-    );
-
-class TrendingPostTimelineNotifier extends AsyncNotifier<List<dynamic>> {
-  String? tag; // tag aktif
-  String? maxId;
-  bool hasMore = true;
-
-  @override
-  Future<List<dynamic>> build() async {
-    // Tidak load apa-apa kalau tag belum ditentukan
-    return _loadInitial();
-  }
-
-  /// Load data awal
-  Future<List<dynamic>> _loadInitial() async {
-    final cred = await CredentialsRepository.loadCredentials();
-    if (cred.accToken == null || cred.instanceUrl == null) return [];
-
-    final posts = await fetchTrendingPost(
-      cred.instanceUrl!,
-      cred.accToken!,
-      null,
-    );
-
-    maxId = posts.isNotEmpty ? posts.last["id"] : null;
-    hasMore = posts.isNotEmpty;
-
-    return posts;
-  }
-
-  /// Load more untuk infinite scroll
-  Future<void> loadMore() async {
-    if (!hasMore || state.isLoading || tag == null) return;
-
-    final current = state.value ?? [];
-
-    state = AsyncValue.data(current); // tetap data saat loading
-
-    final cred = await CredentialsRepository.loadCredentials();
-
-    final more = await fetchTrendingPost(
-      cred.instanceUrl!,
-      cred.accToken!,
-      maxId,
-    );
-
-    maxId = more.isNotEmpty ? more.last["id"] : maxId;
-    hasMore = more.isNotEmpty;
-
-    state = AsyncValue.data([...current, ...more]);
   }
 }
